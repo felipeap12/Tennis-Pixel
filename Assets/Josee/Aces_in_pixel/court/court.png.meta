@@ -1,0 +1,789 @@
+fileFormatVersion: 2
+guid: bb5c7898cd071d84eb1da8e8801be1f4
+AssetOrigin:
+  serializedVersion: 1
+  productId: 335938
+  packageName: Tennis Asset Pack - Aces in pixel
+  packageVersion: 1.0
+  assetPath: Assets/Josee/Aces_in_pixel/court/court.png
+  uploadId: 794894
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -4666485715778765785
+    second: court_0
+  - first:
+      213: 1702020010800628916
+    second: court_1
+  - first:
+      213: 6361161451323067274
+    second: court_2
+  - first:
+      213: 6785013527258686937
+    second: court_3
+  - first:
+      213: -3725703423039202247
+    second: court_4
+  - first:
+      213: 7445732404216613740
+    second: court_5
+  - first:
+      213: -6094294104393175942
+    second: court_6
+  - first:
+      213: -4224245428364929756
+    second: court_7
+  - first:
+      213: 2113351099426210303
+    second: court_8
+  - first:
+      213: -5287760004433204890
+    second: court_9
+  - first:
+      213: 975830844884348107
+    second: court_10
+  - first:
+      213: -8054958211510165991
+    second: court_11
+  - first:
+      213: -7589243789348251653
+    second: court_12
+  - first:
+      213: -1887824128447298570
+    second: court_13
+  - first:
+      213: 4548759704721819850
+    second: court_14
+  - first:
+      213: -6522013963508595970
+    second: court_15
+  - first:
+      213: 8895105165071547206
+    second: court_16
+  - first:
+      213: -8567421880068409241
+    second: court_17
+  - first:
+      213: -6509581897084328041
+    second: court_18
+  - first:
+      213: 1882016237027009826
+    second: court_19
+  - first:
+      213: -5583464271876985906
+    second: court_20
+  - first:
+      213: 5806941103298129730
+    second: court_21
+  - first:
+      213: -830942589493694162
+    second: court_22
+  - first:
+      213: -4099256972127275662
+    second: court_23
+  - first:
+      213: -3941215413823451774
+    second: court_24
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 16
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: court_0
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 128
+        width: 48
+        height: 128
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 72c729137ff4d3fb0800000000000000
+      internalID: -4666485715778765785
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_1
+      rect:
+        serializedVersion: 2
+        x: 130
+        y: 239
+        width: 44
+        height: 18
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b4c060ae2ace9710800000000000000
+      internalID: 1702020010800628916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_2
+      rect:
+        serializedVersion: 2
+        x: 248
+        y: 210
+        width: 32
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8b050913a2674850800000000000000
+      internalID: 6361161451323067274
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_3
+      rect:
+        serializedVersion: 2
+        x: 296
+        y: 210
+        width: 32
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d56970cad5392e50800000000000000
+      internalID: 6785013527258686937
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_4
+      rect:
+        serializedVersion: 2
+        x: 80
+        y: 16
+        width: 144
+        height: 176
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 93c9a43f974ab4cc0800000000000000
+      internalID: -3725703423039202247
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_5
+      rect:
+        serializedVersion: 2
+        x: 248
+        y: 146
+        width: 32
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6b42f52c2e845760800000000000000
+      internalID: 7445732404216613740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_6
+      rect:
+        serializedVersion: 2
+        x: 297
+        y: 146
+        width: 32
+        height: 44
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7e2a0e26a24742345b43c88bf6fb5a8e
+      internalID: -6094294104393175942
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_7
+      rect:
+        serializedVersion: 2
+        x: 244
+        y: 96
+        width: 24
+        height: 32
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 53645aafd418465478d04d830038dd3c
+      internalID: -4224245428364929756
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_8
+      rect:
+        serializedVersion: 2
+        x: 289
+        y: 96
+        width: 14
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 52fcee7a778abec498a5ab139b3aa1eb
+      internalID: 2113351099426210303
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_9
+      rect:
+        serializedVersion: 2
+        x: 305
+        y: 96
+        width: 14
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 08faff9a2f9f7a640a758c4dda930399
+      internalID: -5287760004433204890
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_10
+      rect:
+        serializedVersion: 2
+        x: 321
+        y: 96
+        width: 14
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dd3c08db6c8ca7b45a6a49ead5d53db2
+      internalID: 975830844884348107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_11
+      rect:
+        serializedVersion: 2
+        x: 337
+        y: 96
+        width: 14
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d127b2f8d3ec44e4cb6df49f053ed62f
+      internalID: -8054958211510165991
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_12
+      rect:
+        serializedVersion: 2
+        x: 353
+        y: 96
+        width: 14
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cfb1e3eb301ad054692d0534b8d5f5e9
+      internalID: -7589243789348251653
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_13
+      rect:
+        serializedVersion: 2
+        x: 243
+        y: 64
+        width: 10
+        height: 16
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: abd3f04d8fd74274eaac9a220d2e7fc2
+      internalID: -1887824128447298570
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_14
+      rect:
+        serializedVersion: 2
+        x: 259
+        y: 64
+        width: 10
+        height: 17
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6e24275798ad38b4fb7e3c9a5b661519
+      internalID: 4548759704721819850
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_15
+      rect:
+        serializedVersion: 2
+        x: 289
+        y: 64
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fbee5d74686d28a4f921e04a6b46e2bb
+      internalID: -6522013963508595970
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_16
+      rect:
+        serializedVersion: 2
+        x: 305
+        y: 64
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 01ca3e8939ff29d4f87f57b6c58356f7
+      internalID: 8895105165071547206
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_17
+      rect:
+        serializedVersion: 2
+        x: 321
+        y: 64
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 884f1483d9ba0654e8ea93a8c42dc6ed
+      internalID: -8567421880068409241
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_18
+      rect:
+        serializedVersion: 2
+        x: 337
+        y: 64
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4e477cf5a1345724d9128278829e471c
+      internalID: -6509581897084328041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_19
+      rect:
+        serializedVersion: 2
+        x: 353
+        y: 64
+        width: 13
+        height: 23
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cf176c1baa6ffa4499fd2455d4ef64b3
+      internalID: 1882016237027009826
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_20
+      rect:
+        serializedVersion: 2
+        x: 289
+        y: 32
+        width: 14
+        height: 21
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fc6f28a4d10941f46a8638d0d0f586b8
+      internalID: -5583464271876985906
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_21
+      rect:
+        serializedVersion: 2
+        x: 305
+        y: 32
+        width: 14
+        height: 21
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a9218272b320a9b4ca98b4a7e03fb0b0
+      internalID: 5806941103298129730
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_22
+      rect:
+        serializedVersion: 2
+        x: 321
+        y: 32
+        width: 14
+        height: 21
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 84d4c01e3edc94e4abe9225d3d4803e4
+      internalID: -830942589493694162
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_23
+      rect:
+        serializedVersion: 2
+        x: 337
+        y: 32
+        width: 14
+        height: 21
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 22b88e6e1788a934f83c5aff905c106e
+      internalID: -4099256972127275662
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: court_24
+      rect:
+        serializedVersion: 2
+        x: 353
+        y: 32
+        width: 14
+        height: 21
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8fcdf3b345870be45a20c7bd0a913be7
+      internalID: -3941215413823451774
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 972a8e9e45083c7429165cc8f2eeea9f
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":1.0},"gridSpriteSize":{"x":32.0,"y":32.0},"gridSpriteOffset":{"x":1.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":0,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      court_0: -4666485715778765785
+      court_1: 1702020010800628916
+      court_10: 975830844884348107
+      court_11: -8054958211510165991
+      court_12: -7589243789348251653
+      court_13: -1887824128447298570
+      court_14: 4548759704721819850
+      court_15: -6522013963508595970
+      court_16: 8895105165071547206
+      court_17: -8567421880068409241
+      court_18: -6509581897084328041
+      court_19: 1882016237027009826
+      court_2: 6361161451323067274
+      court_20: -5583464271876985906
+      court_21: 5806941103298129730
+      court_22: -830942589493694162
+      court_23: -4099256972127275662
+      court_24: -3941215413823451774
+      court_3: 6785013527258686937
+      court_4: -3725703423039202247
+      court_5: 7445732404216613740
+      court_6: -6094294104393175942
+      court_7: -4224245428364929756
+      court_8: 2113351099426210303
+      court_9: -5287760004433204890
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
