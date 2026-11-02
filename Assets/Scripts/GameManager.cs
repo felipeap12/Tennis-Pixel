@@ -52,7 +52,16 @@ public class GameManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
 
+        EnsureAudioManager();
         EnsureScoreboardHUD();
+    }
+
+    private void EnsureAudioManager()
+    {
+        if (AudioManager.Instance == null)
+        {
+            AudioManager.EnsureInstance();
+        }
     }
 
     void Start()

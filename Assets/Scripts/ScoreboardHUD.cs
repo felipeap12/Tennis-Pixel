@@ -1739,6 +1739,12 @@ public class ScoreboardHUD : MonoBehaviour
                 victoryCanvasGroup.blocksRaycasts = false;
             }
         }
+
+        // Restaura o volume normal da música tema
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.RestoreMusic(0.40f);
+        }
     }
 
     private IEnumerator VictoryScreenRoutine(int p1Sets, int p2Sets)
@@ -1767,6 +1773,12 @@ public class ScoreboardHUD : MonoBehaviour
                 $"<b><color=#FACC15>GRADUAÇÃO CONQUISTADA:</color></b>  PROFISSIONAL (NÍVEL 5)\n" +
                 $"<b><color=#72F526>GRANDE FINAL:</color></b>  VOCÊ <color=#85F226>{p1Sets}</color>  x  <color=#F54761>{p2Sets}</color> I.A. RIVAL\n" +
                 $"<b><color=#38BDF8>STATUS DO CIRCUITO:</color></b>  100% CONCLUÍDO (CAMPEÃO DO TORNEIO)";
+        }
+
+        // Reduz o volume da música tema para dar destaque à fanfarra triunfal
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.DuckMusic(0.10f, 0.35f);
         }
 
         // Toca efeito sonoro de triunfo (áudio configurado ou fanfarra 8-bits sintetizada)
@@ -2194,6 +2206,12 @@ public class ScoreboardHUD : MonoBehaviour
                 defeatCanvasGroup.blocksRaycasts = false;
             }
         }
+
+        // Restaura o volume normal da música tema
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.RestoreMusic(0.40f);
+        }
     }
 
     private IEnumerator DefeatScreenRoutine(int level, string grad, int p1Sets, int p2Sets)
@@ -2222,6 +2240,12 @@ public class ScoreboardHUD : MonoBehaviour
                 $"<b><color=#F54761>ELIMINADO NO:</color></b>  NÍVEL {level} ({grad.ToUpper()})\n" +
                 $"<b><color=#94A3B8>PLACAR FINAL:</color></b>  VOCÊ <color=#85F226>{p1Sets}</color>  x  <color=#F54761>{p2Sets}</color> I.A. RIVAL\n" +
                 $"<b><color=#FACC15>DESTINO:</color></b>  O TORNEIO DEVE SER REINICIADO DO NÍVEL 1";
+        }
+
+        // Reduz o volume da música tema para dar destaque ao jingle melancólico de derrota
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.DuckMusic(0.10f, 0.35f);
         }
 
         // Toca efeito sonoro dramático de derrota retrô

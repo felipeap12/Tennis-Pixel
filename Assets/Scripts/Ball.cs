@@ -40,6 +40,13 @@ public class Ball : MonoBehaviour
     public Transform player1Transform;
     public Transform player2Transform;
 
+    [Header("Efeitos Sonoros (Batida da Raquete)")]
+    public AudioSource hitAudioSource;
+    public AudioClip racketHitSound;
+    [Range(0f, 1f)] public float hitSoundVolume = 0.85f;
+    [Tooltip("Aplica uma elevação sutil e dinâmica de tom (pitch) à medida que o rally fica mais rápido e tenso.")]
+    public bool dynamicRallyPitch = true;
+
     public int currentRally { get; private set; } = 0;
 
     private bool isBallInPlay = false;
@@ -63,6 +70,17 @@ public class Ball : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+
+        if (hitAudioSource == null)
+        {
+            hitAudioSource = GetComponent<AudioSource>();
+            if (hitAudioSource == null)
+            {
+                hitAudioSource = gameObject.AddComponent<AudioSource>();
+            }
+        }
+        hitAudioSource.playOnAwake = false;
+        hitAudioSource.spatialBlend = 0f; // Áudio estéreo 2D limpo
 
         // Salva a velocidade inicial configurada no Inspector
         if (initialInspectorSpeed <= 0f)
@@ -252,6 +270,9 @@ public class Ball : MonoBehaviour
 
         actualDirection = targetDirection;
 
+        // Dispara o efeito sonoro da batida da raquete no saque (P1 ou IA)
+        PlayRacketHitSound(!isPlayer1Serving);
+
         // Libera a validação de pontos 0.3s depois de a bola já ter entrado em movimento
         Invoke(nameof(EnablePointChecking), 0.3f);
     }
@@ -308,6 +329,46 @@ public class Ball : MonoBehaviour
         if (ScoreboardHUD.Instance != null)
         {
             ScoreboardHUD.Instance.OnRallyHit(currentRally, currentSpeed);
+        }
+
+        // Toca o efeito sonoro da batida da raquete na bola (Player ou Adversário)
+        bool isEnemyHit = targetYDirection < 0f;
+        PlayRacketHitSound(isEnemyHit);
+    }
+
+    /// <summary>
+    /// Toca o efeito sonoro de impacto da raquete na bola com variação de tom orgânica e dinâmica de rally
+    /// </summary>
+    public void PlayRacketHitSound(bool isEnemyHit = false)
+    {
+        AudioClip clipToPlay = racketHitSound;
+        if (clipToPlay == null)
+        {
+            if (AudioManager.Instance != null)
+            {
+                clipToPlay = AudioManager.Instance.GetRacketHitClip();
+            }
+            else
+            {
+                clipToPlay = AudioManager.GetOrCreateRetroRacketHitSound();
+            }
+        }
+
+        if (clipToPlay == null) return;
+
+        // Pitch dinâmico: ligeiramente mais agudo para o jogador e sobe sutilmente com a velocidade do rally
+        float basePitch = isEnemyHit ? 0.98f : 1.02f;
+        float rallyPitchBoost = dynamicRallyPitch ? Mathf.Clamp(currentRally * 0.012f, 0f, 0.20f) : 0f;
+        float randomPitch = Random.Range(-0.04f, 0.04f);
+
+        if (hitAudioSource != null)
+        {
+            hitAudioSource.pitch = Mathf.Clamp(basePitch + rallyPitchBoost + randomPitch, 0.7f, 1.4f);
+            hitAudioSource.PlayOneShot(clipToPlay, hitSoundVolume);
+        }
+        else if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayRacketHit(rallyPitchBoost, hitSoundVolume);
         }
     }
 

@@ -65,6 +65,9 @@ public class LoginManager : MonoBehaviour
             return;
         }
 
+        // Inicia o AudioManager para garantir a música tema de fundo desde a tela inicial
+        AudioManager.EnsureInstance();
+
         // Congela o tempo do jogo enquanto o menu estiver ativo
         Time.timeScale = 0f;
 
