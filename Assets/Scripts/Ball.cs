@@ -38,6 +38,8 @@ public class Ball : MonoBehaviour
     public Transform player1Transform;
     public Transform player2Transform;
 
+    public int currentRally { get; private set; } = 0;
+
     private bool isBallInPlay = false;
     private bool isServing = false;
     private bool isPlayer1Serving = true;
@@ -141,6 +143,13 @@ public class Ball : MonoBehaviour
         isPlayer1Serving = serveToPlayer1;
         currentSpeed = baseSpeed;
         currentSpin = 0f;
+        currentRally = 0;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.SetServer(serveToPlayer1);
+            ScoreboardHUD.Instance.HideRallyImmediate();
+        }
 
         // Garante que a bola fique visível por cima dos personagens no saque
         if (spriteRenderer != null)
@@ -247,6 +256,12 @@ public class Ball : MonoBehaviour
         targetDirection = new Vector2(xOffset, targetYDirection).normalized;
         actualDirection = targetDirection;
         currentSpeed = Mathf.Min(currentSpeed + speedIncreasePerHit, maxSpeed);
+
+        currentRally++;
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.OnRallyHit(currentRally, currentSpeed);
+        }
     }
 
     private void CheckOutOfBounds()
@@ -273,6 +288,11 @@ public class Ball : MonoBehaviour
     {
         isProcessingPoint = true;
         canCheckPoint = false;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.OnRallyEnd();
+        }
 
         if (player1Scored)
         {
