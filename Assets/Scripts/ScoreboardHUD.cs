@@ -38,6 +38,11 @@ public class ScoreboardHUD : MonoBehaviour
     public AudioClip cheerSound;
     public AudioClip alertSound;
 
+    [Header("Transição de Nível")]
+    public float levelTransitionHoldDuration = 1.8f;
+    public float levelTransitionFadeDuration = 0.25f;
+    public AudioClip levelUpSound;
+
     // Componentes Visuais
     private Canvas rootCanvas;
     private RectTransform scoreboardCardRect;
@@ -76,6 +81,19 @@ public class ScoreboardHUD : MonoBehaviour
     private TextMeshProUGUI txtBanner;
     private Image bannerBgImg;
     private Coroutine currentBannerRoutine;
+
+    // Overlay de Transição de Nível
+    private GameObject levelTransitionOverlayObj;
+    private CanvasGroup levelTransitionCanvasGroup;
+    private RectTransform levelTransitionCardRect;
+    private Image levelTransitionCardImg;
+    private TextMeshProUGUI txtTransitionTag;
+    private TextMeshProUGUI txtTransitionTitle;
+    private TextMeshProUGUI txtTransitionSubtitle;
+    private TextMeshProUGUI txtTransitionPrompt;
+    private Coroutine currentLevelTransitionRoutine;
+    private bool isTransitioningLevel = false;
+    public bool IsTransitioningLevel => isTransitioningLevel;
 
     // Dica de Controles
     private GameObject controlsHintObj;
@@ -123,6 +141,22 @@ public class ScoreboardHUD : MonoBehaviour
 
     void Start()
     {
+        // Garante referência de áudio
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        if (levelUpSound == null)
+        {
+            LoginManager lm = FindAnyObjectByType<LoginManager>();
+            if (lm != null && lm.transitionSound != null)
+            {
+                levelUpSound = lm.transitionSound;
+            }
+        }
+
         // Se o GameManager já estiver pronto, atualiza o placar inicial
         if (GameManager.Instance != null)
         {
@@ -191,6 +225,9 @@ public class ScoreboardHUD : MonoBehaviour
 
         // 9. Constrói a Barra Discreta de Dica de Controles (Bottom-Right)
         BuildControlsHint(rootCanvas.transform, baseFont);
+
+        // 10. Constrói o Overlay de Transição de Nível (Centro Cinematográfico)
+        BuildLevelTransitionOverlay(rootCanvas.transform, baseFont);
     }
 
     private void HideOldScorePlaceholders()
@@ -624,6 +661,155 @@ public class ScoreboardHUD : MonoBehaviour
         t.text = "<b><color=#72F526>[ESPAÇO]</color></b> Sacar & Rebater   <color=#64748B>•</color>   <b><color=#72F526>[W][A][S][D]</color></b> Mover";
     }
 
+    private void BuildLevelTransitionOverlay(Transform parent, TMP_FontAsset font)
+    {
+        Transform existingOverlay = parent.Find("LevelTransitionOverlay");
+        if (existingOverlay != null)
+        {
+            levelTransitionOverlayObj = existingOverlay.gameObject;
+        }
+        else
+        {
+            levelTransitionOverlayObj = new GameObject("LevelTransitionOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(CanvasGroup));
+            levelTransitionOverlayObj.transform.SetParent(parent, false);
+        }
+
+        RectTransform rOverlay = levelTransitionOverlayObj.GetComponent<RectTransform>();
+        rOverlay.anchorMin = Vector2.zero;
+        rOverlay.anchorMax = Vector2.one;
+        rOverlay.pivot = new Vector2(0.5f, 0.5f);
+        rOverlay.sizeDelta = Vector2.zero;
+        rOverlay.anchoredPosition = Vector2.zero;
+
+        Image imgOverlay = levelTransitionOverlayObj.GetComponent<Image>();
+        imgOverlay.color = new Color(0.02f, 0.04f, 0.08f, 0.94f);
+        imgOverlay.raycastTarget = false;
+
+        levelTransitionCanvasGroup = levelTransitionOverlayObj.GetComponent<CanvasGroup>();
+        if (levelTransitionCanvasGroup == null) levelTransitionCanvasGroup = levelTransitionOverlayObj.AddComponent<CanvasGroup>();
+        levelTransitionCanvasGroup.alpha = 0f;
+        levelTransitionCanvasGroup.blocksRaycasts = false;
+
+        // Card Central de Transição
+        Transform cardTr = levelTransitionOverlayObj.transform.Find("TransitionCard");
+        GameObject cardObj;
+        if (cardTr != null)
+        {
+            cardObj = cardTr.gameObject;
+        }
+        else
+        {
+            cardObj = new GameObject("TransitionCard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            cardObj.transform.SetParent(levelTransitionOverlayObj.transform, false);
+        }
+
+        levelTransitionCardRect = cardObj.GetComponent<RectTransform>();
+        levelTransitionCardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        levelTransitionCardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        levelTransitionCardRect.pivot = new Vector2(0.5f, 0.5f);
+        levelTransitionCardRect.anchoredPosition = Vector2.zero;
+        levelTransitionCardRect.sizeDelta = new Vector2(660f, 250f);
+
+        levelTransitionCardImg = cardObj.GetComponent<Image>();
+        levelTransitionCardImg.sprite = LoginManager.CreateRoundedRectSprite(64, 64, 16, cardBgColor, goldColor, 3);
+        levelTransitionCardImg.type = Image.Type.Sliced;
+        levelTransitionCardImg.color = Color.white;
+
+        // 1. Tag Superior Pill
+        GameObject tagObj = new GameObject("Tag_Pill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        tagObj.transform.SetParent(cardObj.transform, false);
+        RectTransform tagRect = tagObj.GetComponent<RectTransform>();
+        tagRect.anchorMin = new Vector2(0.5f, 1f);
+        tagRect.anchorMax = new Vector2(0.5f, 1f);
+        tagRect.pivot = new Vector2(0.5f, 1f);
+        tagRect.anchoredPosition = new Vector2(0f, -18f);
+        tagRect.sizeDelta = new Vector2(320f, 28f);
+
+        Image tagImg = tagObj.GetComponent<Image>();
+        tagImg.sprite = pillBadgeSprite;
+        tagImg.type = Image.Type.Sliced;
+
+        GameObject tagTxtObj = new GameObject("Txt_Tag", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        tagTxtObj.transform.SetParent(tagObj.transform, false);
+        RectTransform tagTxtRect = tagTxtObj.GetComponent<RectTransform>();
+        tagTxtRect.anchorMin = Vector2.zero;
+        tagTxtRect.anchorMax = Vector2.one;
+        tagTxtRect.sizeDelta = Vector2.zero;
+        tagTxtRect.anchoredPosition = Vector2.zero;
+
+        txtTransitionTag = tagTxtObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtTransitionTag.font = font;
+        txtTransitionTag.fontSize = 12.5f;
+        txtTransitionTag.fontStyle = FontStyles.Bold;
+        txtTransitionTag.alignment = TextAlignmentOptions.Center;
+        txtTransitionTag.color = goldColor;
+        txtTransitionTag.text = "★ NOVO NÍVEL ALCANÇADO ★";
+
+        // 2. Título do Nível (Em destaque retrô arcade com gradiente neon)
+        GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        titleObj.transform.SetParent(cardObj.transform, false);
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0.5f, 1f);
+        titleRect.anchorMax = new Vector2(0.5f, 1f);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.anchoredPosition = new Vector2(0f, -52f);
+        titleRect.sizeDelta = new Vector2(640f, 58f);
+
+        txtTransitionTitle = titleObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtTransitionTitle.font = font;
+        txtTransitionTitle.fontSize = 50f;
+        txtTransitionTitle.fontStyle = FontStyles.Bold;
+        txtTransitionTitle.alignment = TextAlignmentOptions.Center;
+        txtTransitionTitle.enableVertexGradient = true;
+        txtTransitionTitle.colorGradient = new VertexGradient(
+            new Color(1f, 0.95f, 0.35f, 1f),
+            new Color(1f, 0.95f, 0.35f, 1f),
+            new Color(0.52f, 0.95f, 0.15f, 1f),
+            new Color(0.52f, 0.95f, 0.15f, 1f)
+        );
+        txtTransitionTitle.text = "NÍVEL 2";
+
+        // 3. Subtítulo (Nome da Graduação)
+        GameObject subObj = new GameObject("Txt_Subtitle", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        subObj.transform.SetParent(cardObj.transform, false);
+        RectTransform subRect = subObj.GetComponent<RectTransform>();
+        subRect.anchorMin = new Vector2(0.5f, 1f);
+        subRect.anchorMax = new Vector2(0.5f, 1f);
+        subRect.pivot = new Vector2(0.5f, 1f);
+        subRect.anchoredPosition = new Vector2(0f, -114f);
+        subRect.sizeDelta = new Vector2(640f, 32f);
+
+        txtTransitionSubtitle = subObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtTransitionSubtitle.font = font;
+        txtTransitionSubtitle.fontSize = 22f;
+        txtTransitionSubtitle.fontStyle = FontStyles.Bold;
+        txtTransitionSubtitle.alignment = TextAlignmentOptions.Center;
+        txtTransitionSubtitle.color = new Color(0.22f, 0.74f, 0.97f, 1f);
+        txtTransitionSubtitle.text = "GRADUAÇÃO: AMADOR";
+
+        // Divisória sutil
+        BuildDividerLine(cardObj.transform, new Vector2(0f, -152f), new Vector2(-120f, 1.5f), new Color(0.2f, 0.3f, 0.45f, 0.5f));
+
+        // 4. Chamada Inferior (PREPARAR... SAQUE!)
+        GameObject promptObj = new GameObject("Txt_Prompt", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        promptObj.transform.SetParent(cardObj.transform, false);
+        RectTransform promptRect = promptObj.GetComponent<RectTransform>();
+        promptRect.anchorMin = new Vector2(0.5f, 0f);
+        promptRect.anchorMax = new Vector2(0.5f, 0f);
+        promptRect.pivot = new Vector2(0.5f, 0f);
+        promptRect.anchoredPosition = new Vector2(0f, 16f);
+        promptRect.sizeDelta = new Vector2(640f, 54f);
+
+        txtTransitionPrompt = promptObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtTransitionPrompt.font = font;
+        txtTransitionPrompt.fontSize = 21f;
+        txtTransitionPrompt.fontStyle = FontStyles.Bold;
+        txtTransitionPrompt.alignment = TextAlignmentOptions.Center;
+        txtTransitionPrompt.text = "<b><color=#72F526>PREPARAR... SAQUE!</color></b>\n<size=12><color=#94A3B8>Pressione [ESPAÇO] para iniciar ou aguarde...</color></size>";
+
+        levelTransitionOverlayObj.SetActive(false);
+    }
+
     private void BuildDividerLine(Transform parent, Vector2 anchoredPos, Vector2 sizeDelta, Color color)
     {
         GameObject divObj = new GameObject("Divider", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
@@ -934,6 +1120,179 @@ public class ScoreboardHUD : MonoBehaviour
             yield return StartCoroutine(FadeCanvasGroup(controlsHintCanvasGroup, controlsHintCanvasGroup.alpha, 0f, 1.5f));
             if (controlsHintObj != null) controlsHintObj.SetActive(false);
         }
+    }
+
+    #endregion
+
+    #region Transição de Níveis Intermediária
+
+    /// <summary>
+    /// Dispara a tela cinematográfica de transição entre níveis com detalhes de atributos e anúncio de saque
+    /// </summary>
+    public void ShowLevelTransition(int fromLevel, int toLevel, string fromGrad, string toGrad, System.Action onComplete = null)
+    {
+        if (currentLevelTransitionRoutine != null)
+        {
+            StopCoroutine(currentLevelTransitionRoutine);
+        }
+
+        currentLevelTransitionRoutine = StartCoroutine(LevelTransitionRoutine(fromLevel, toLevel, fromGrad, toGrad, onComplete, false, false));
+    }
+
+    /// <summary>
+    /// Dispara a tela comemorativa de Grande Campeão ao vencer o nível 5
+    /// </summary>
+    public void ShowChampionTransition(int level, string grad, System.Action onComplete = null)
+    {
+        if (currentLevelTransitionRoutine != null)
+        {
+            StopCoroutine(currentLevelTransitionRoutine);
+        }
+
+        currentLevelTransitionRoutine = StartCoroutine(LevelTransitionRoutine(level, level, grad, grad, onComplete, true, false));
+    }
+
+    /// <summary>
+    /// Dispara a tela de revanche / nova tentativa para o nível atual
+    /// </summary>
+    public void ShowRetryTransition(int level, string grad, System.Action onComplete = null)
+    {
+        if (currentLevelTransitionRoutine != null)
+        {
+            StopCoroutine(currentLevelTransitionRoutine);
+        }
+
+        currentLevelTransitionRoutine = StartCoroutine(LevelTransitionRoutine(level, level, grad, grad, onComplete, false, true));
+    }
+
+    private IEnumerator LevelTransitionRoutine(int fromLevel, int toLevel, string fromGrad, string toGrad, System.Action onComplete, bool isChampion = false, bool isRetry = false)
+    {
+        isTransitioningLevel = true;
+
+        if (levelTransitionOverlayObj == null)
+        {
+            TMP_FontAsset baseFont = customFont ?? TMP_Settings.defaultFontAsset;
+            BuildLevelTransitionOverlay(rootCanvas.transform, baseFont);
+        }
+
+        if (levelTransitionOverlayObj == null)
+        {
+            isTransitioningLevel = false;
+            onComplete?.Invoke();
+            yield break;
+        }
+
+        // Traz o overlay para o topo visual absoluto do Canvas
+        levelTransitionOverlayObj.transform.SetAsLastSibling();
+        levelTransitionOverlayObj.SetActive(true);
+
+        // Preenche os textos temáticos de forma direta e limpa
+        if (isChampion)
+        {
+            if (txtTransitionTag != null) txtTransitionTag.text = "★ TORNEIO CONCLUÍDO ★";
+            if (txtTransitionTitle != null) txtTransitionTitle.text = "GRANDE CAMPEÃO!";
+            if (txtTransitionSubtitle != null) txtTransitionSubtitle.text = $"GRADUAÇÃO MÁXIMA: {toGrad.ToUpper()}";
+            if (txtTransitionPrompt != null) txtTransitionPrompt.text = "<b><color=#72F526>PREPARAR... SAQUE! (MODO CAMPEÃO)</color></b>\n<size=12><color=#94A3B8>Pressione [ESPAÇO] para jogar ou aguarde...</color></size>";
+        }
+        else if (isRetry)
+        {
+            if (txtTransitionTag != null) txtTransitionTag.text = "★ REVANCHE ★";
+            if (txtTransitionTitle != null) txtTransitionTitle.text = $"NÍVEL {toLevel}";
+            if (txtTransitionSubtitle != null) txtTransitionSubtitle.text = $"GRADUAÇÃO: {toGrad.ToUpper()}";
+            if (txtTransitionPrompt != null) txtTransitionPrompt.text = "<b><color=#72F526>PREPARAR... SAQUE!</color></b>\n<size=12><color=#94A3B8>Pressione [ESPAÇO] para sacar ou aguarde...</color></size>";
+        }
+        else
+        {
+            if (txtTransitionTag != null) txtTransitionTag.text = "★ NOVO NÍVEL ALCANÇADO ★";
+            if (txtTransitionTitle != null) txtTransitionTitle.text = $"NÍVEL {toLevel}";
+            if (txtTransitionSubtitle != null) txtTransitionSubtitle.text = $"GRADUAÇÃO: {toGrad.ToUpper()}";
+            if (txtTransitionPrompt != null) txtTransitionPrompt.text = "<b><color=#72F526>PREPARAR... SAQUE!</color></b>\n<size=12><color=#94A3B8>Pressione [ESPAÇO] para iniciar ou aguarde...</color></size>";
+        }
+
+        // Toca efeito sonoro retrô
+        AudioClip soundToPlay = levelUpSound != null ? levelUpSound : (cheerSound != null ? cheerSound : alertSound);
+        if (audioSource != null && soundToPlay != null)
+        {
+            audioSource.PlayOneShot(soundToPlay);
+        }
+
+        // Bloqueia raycasts durante a animação para proteção de input
+        if (levelTransitionCanvasGroup != null)
+        {
+            levelTransitionCanvasGroup.blocksRaycasts = true;
+        }
+
+        // 1. Animação de Entrada Cinematográfica (Punch-in elástico retrô)
+        float elapsed = 0f;
+        float punchInDuration = 0.28f;
+        while (elapsed < punchInDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / punchInDuration);
+
+            // Escala com bounce suave: 0.4x -> 1.10x -> 1.0x
+            float scaleValue = Mathf.Lerp(0.4f, 1.10f, Mathf.Sin(t * Mathf.PI * 0.5f));
+            if (t >= 0.75f)
+            {
+                scaleValue = Mathf.Lerp(1.10f, 1.0f, (t - 0.75f) / 0.25f);
+            }
+
+            if (levelTransitionCanvasGroup != null) levelTransitionCanvasGroup.alpha = Mathf.Clamp01(t * 1.4f);
+            if (levelTransitionCardRect != null) levelTransitionCardRect.localScale = new Vector3(scaleValue, scaleValue, 1f);
+            yield return null;
+        }
+
+        if (levelTransitionCardRect != null) levelTransitionCardRect.localScale = Vector3.one;
+        if (levelTransitionCanvasGroup != null) levelTransitionCanvasGroup.alpha = 1f;
+
+        // 2. Tempo de Retenção (Hold Duration) com suporte a avanço imediato por [ESPAÇO] ou [ENTER]
+        float holdTimer = 0f;
+        while (holdTimer < levelTransitionHoldDuration)
+        {
+            holdTimer += Time.unscaledDeltaTime;
+
+            // Pulso sutil no anúncio 'PREPARAR... SAQUE!'
+            if (txtTransitionPrompt != null)
+            {
+                float pulse = 0.94f + (Mathf.Sin(Time.unscaledTime * 6f) * 0.06f);
+                txtTransitionPrompt.transform.localScale = new Vector3(pulse, pulse, 1f);
+            }
+
+            // Permite ao jogador pular o tempo de espera após 0.35s
+            if (holdTimer > 0.35f && (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter)))
+            {
+                break;
+            }
+
+            yield return null;
+        }
+
+        if (txtTransitionPrompt != null) txtTransitionPrompt.transform.localScale = Vector3.one;
+
+        // 3. Animação de Saída Suave (Fade Out)
+        elapsed = 0f;
+        while (elapsed < levelTransitionFadeDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / levelTransitionFadeDuration);
+
+            if (levelTransitionCanvasGroup != null) levelTransitionCanvasGroup.alpha = Mathf.Lerp(1f, 0f, t);
+            if (levelTransitionCardRect != null) levelTransitionCardRect.localScale = Vector3.Lerp(Vector3.one, Vector3.one * 1.05f, t);
+            yield return null;
+        }
+
+        if (levelTransitionCanvasGroup != null)
+        {
+            levelTransitionCanvasGroup.alpha = 0f;
+            levelTransitionCanvasGroup.blocksRaycasts = false;
+        }
+
+        levelTransitionOverlayObj.SetActive(false);
+        isTransitioningLevel = false;
+        currentLevelTransitionRoutine = null;
+
+        // Executa a conclusão (atualiza o nível no GameManager e inicia o saque)
+        onComplete?.Invoke();
     }
 
     #endregion

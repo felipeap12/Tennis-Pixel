@@ -53,6 +53,21 @@ public class GameManager : MonoBehaviour
         // NOTA: O primeiro saque é disparado pelo botão de entrar do Menu (LoginManager)
     }
 
+    void Update()
+    {
+        // Teclas de atalho para teste em tempo real:
+        // [L] = Avança de nível exibindo a nova tela de transição
+        // [K] = Volta de nível exibindo a nova tela de transição
+        if (Input.GetKeyDown(KeyCode.L))
+        {
+            DebugAdvanceLevel();
+        }
+        else if (Input.GetKeyDown(KeyCode.K))
+        {
+            DebugRegressLevel();
+        }
+    }
+
     /// <summary>
     /// Garante que o ScoreboardHUD moderno esteja ativo e anexado ao Canvas da partida
     /// </summary>
@@ -193,16 +208,17 @@ public class GameManager : MonoBehaviour
 
             if (ScoreboardHUD.Instance != null)
             {
-                ScoreboardHUD.Instance.ShowAnnouncement("🏆 VOCÊ VENCEU A PARTIDA!", ScoreboardHUD.Instance.goldColor, 3.5f);
+                ScoreboardHUD.Instance.ShowAnnouncement("🏆 VOCÊ VENCEU A PARTIDA!", ScoreboardHUD.Instance.goldColor, 1.8f);
             }
 
             if (currentLevel < 5)
             {
-                currentLevel++;
-                ApplyGlobalLevel(currentLevel);
+                Invoke(nameof(StartNextLevelTransition), 1.8f);
             }
-
-            Invoke(nameof(ResetMatchAndServe), 3.5f);
+            else
+            {
+                Invoke(nameof(StartChampionTransition), 1.8f);
+            }
         }
         else if (player2Sets >= 2)
         {
@@ -211,10 +227,122 @@ public class GameManager : MonoBehaviour
 
             if (ScoreboardHUD.Instance != null)
             {
-                ScoreboardHUD.Instance.ShowAnnouncement("💔 A I.A. VENCEU A PARTIDA!", ScoreboardHUD.Instance.p2Color, 3.5f);
+                ScoreboardHUD.Instance.ShowAnnouncement("💔 A I.A. VENCEU A PARTIDA!", ScoreboardHUD.Instance.p2Color, 1.8f);
             }
 
-            Invoke(nameof(ResetMatchAndServe), 3.5f);
+            Invoke(nameof(StartRetryLevelTransition), 1.8f);
+        }
+    }
+
+    private void StartNextLevelTransition()
+    {
+        int oldLevel = currentLevel;
+        int nextLevel = currentLevel + 1;
+        string oldGrad = (levelGraduations != null && oldLevel <= levelGraduations.Length) ? levelGraduations[oldLevel - 1] : $"Nível {oldLevel}";
+        string nextGrad = (levelGraduations != null && nextLevel <= levelGraduations.Length) ? levelGraduations[nextLevel - 1] : $"Nível {nextLevel}";
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.ShowLevelTransition(oldLevel, nextLevel, oldGrad, nextGrad, () =>
+            {
+                currentLevel = nextLevel;
+                ApplyGlobalLevel(currentLevel);
+                ResetMatchAndServe();
+            });
+        }
+        else
+        {
+            currentLevel = nextLevel;
+            ApplyGlobalLevel(currentLevel);
+            ResetMatchAndServe();
+        }
+    }
+
+    private void StartChampionTransition()
+    {
+        string grad = (levelGraduations != null && currentLevel <= levelGraduations.Length) ? levelGraduations[currentLevel - 1] : "Profissional";
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.ShowChampionTransition(currentLevel, grad, () =>
+            {
+                ResetMatchAndServe();
+            });
+        }
+        else
+        {
+            ResetMatchAndServe();
+        }
+    }
+
+    private void StartRetryLevelTransition()
+    {
+        string grad = (levelGraduations != null && currentLevel <= levelGraduations.Length) ? levelGraduations[currentLevel - 1] : $"Nível {currentLevel}";
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.ShowRetryTransition(currentLevel, grad, () =>
+            {
+                ResetMatchAndServe();
+            });
+        }
+        else
+        {
+            ResetMatchAndServe();
+        }
+    }
+
+    [ContextMenu("Testar Transição de Próximo Nível (L)")]
+    public void DebugAdvanceLevel()
+    {
+        if (ScoreboardHUD.Instance != null && ScoreboardHUD.Instance.IsTransitioningLevel)
+            return;
+
+        int oldLevel = currentLevel;
+        int nextLevel = currentLevel < 5 ? currentLevel + 1 : 1;
+        string oldGrad = (levelGraduations != null && oldLevel <= levelGraduations.Length) ? levelGraduations[oldLevel - 1] : $"Nível {oldLevel}";
+        string nextGrad = (levelGraduations != null && nextLevel <= levelGraduations.Length) ? levelGraduations[nextLevel - 1] : $"Nível {nextLevel}";
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.ShowLevelTransition(oldLevel, nextLevel, oldGrad, nextGrad, () =>
+            {
+                currentLevel = nextLevel;
+                ApplyGlobalLevel(currentLevel);
+                ResetMatchAndServe();
+            });
+        }
+        else
+        {
+            currentLevel = nextLevel;
+            ApplyGlobalLevel(currentLevel);
+            ResetMatchAndServe();
+        }
+    }
+
+    [ContextMenu("Testar Transição de Nível Anterior (K)")]
+    public void DebugRegressLevel()
+    {
+        if (ScoreboardHUD.Instance != null && ScoreboardHUD.Instance.IsTransitioningLevel)
+            return;
+
+        int oldLevel = currentLevel;
+        int prevLevel = currentLevel > 1 ? currentLevel - 1 : 5;
+        string oldGrad = (levelGraduations != null && oldLevel <= levelGraduations.Length) ? levelGraduations[oldLevel - 1] : $"Nível {oldLevel}";
+        string prevGrad = (levelGraduations != null && prevLevel <= levelGraduations.Length) ? levelGraduations[prevLevel - 1] : $"Nível {prevLevel}";
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.ShowLevelTransition(oldLevel, prevLevel, oldGrad, prevGrad, () =>
+            {
+                currentLevel = prevLevel;
+                ApplyGlobalLevel(currentLevel);
+                ResetMatchAndServe();
+            });
+        }
+        else
+        {
+            currentLevel = prevLevel;
+            ApplyGlobalLevel(currentLevel);
+            ResetMatchAndServe();
         }
     }
 
