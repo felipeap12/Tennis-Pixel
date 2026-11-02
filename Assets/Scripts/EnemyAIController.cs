@@ -28,8 +28,17 @@ public class EnemyAIController : MonoBehaviour
     [Header("Dificuldade Ativa")]
     public AIDifficulty currentDifficulty;
 
+    [Header("Acompanhamento de Saque")]
+    [Tooltip("Fator de cobertura lateral no saque (0.85 = cobre 85% do deslocamento do player, bissetriz ideal).")]
+    [Range(0.5f, 1.0f)] public float serveTrackingFactor = 0.85f;
+    [Tooltip("Multiplicador da velocidade de deslocamento durante o acompanhamento de saque.")]
+    public float serveTrackingSpeedMultiplier = 1.0f;
+    [Tooltip("Suavização do movimento de acompanhamento para evitar mudanças bruscas.")]
+    public float serveTrackingSmoothness = 6.0f;
+
     [Header("Referências")]
     public Transform ball;
+    public Transform playerTransform;
     public Transform hitArea;
     public float hitRadius = 0.60f;
 
@@ -59,6 +68,7 @@ public class EnemyAIController : MonoBehaviour
     private Vector3 initialHitAreaLocalPos = new Vector3(0f, -0.25f, 0f);
     private float reactionTimer;
     private bool isServingMode = false;
+    private float currentServeTrackX = 0f;
     private bool isHitting = false;
     private bool canHit = true;
     private bool isMoving = false;
@@ -80,6 +90,7 @@ public class EnemyAIController : MonoBehaviour
         if (animator != null) animator.applyRootMotion = false;
 
         FindBallReferences();
+        FindPlayerReferences();
 
         if (hitArea == null)
         {
@@ -103,6 +114,7 @@ public class EnemyAIController : MonoBehaviour
 
         homePosition = new Vector2(Mathf.Clamp(homePosition.x, minX, maxX), Mathf.Clamp(homePosition.y, minY, maxY));
         targetPosition = homePosition;
+        currentServeTrackX = homePosition.x;
 
         hitRadius = Mathf.Max(hitRadius, 0.60f);
         ApplyLevel(currentLevel);
@@ -111,6 +123,7 @@ public class EnemyAIController : MonoBehaviour
     void Start()
     {
         FindBallReferences();
+        FindPlayerReferences();
     }
 
     private void FindBallReferences()
@@ -125,19 +138,35 @@ public class EnemyAIController : MonoBehaviour
         }
     }
 
+    private void FindPlayerReferences()
+    {
+        if (playerTransform == null)
+        {
+            PlayerController player = FindAnyObjectByType<PlayerController>();
+            if (player != null)
+            {
+                playerTransform = player.transform;
+            }
+            else if (GameManager.Instance != null && GameManager.Instance.playerController != null)
+            {
+                playerTransform = GameManager.Instance.playerController.transform;
+            }
+        }
+    }
+
     public void ApplyLevel(int level)
     {
         currentLevel = Mathf.Clamp(level, 1, 5);
         currentDifficulty = DifficultyPresets[currentLevel - 1];
 
-        // Escala o raio de golpe da IA de forma justa de acordo com a graduação
+        // Escala o raio de golpe e a cobertura de saque da IA de acordo com a graduação
         switch (currentLevel)
         {
-            case 1: hitRadius = 0.60f; break;
-            case 2: hitRadius = 0.65f; break;
-            case 3: hitRadius = 0.70f; break;
-            case 4: hitRadius = 0.75f; break;
-            case 5: hitRadius = 0.80f; break;
+            case 1: hitRadius = 0.60f; serveTrackingFactor = 0.75f; break;
+            case 2: hitRadius = 0.65f; serveTrackingFactor = 0.80f; break;
+            case 3: hitRadius = 0.70f; serveTrackingFactor = 0.85f; break;
+            case 4: hitRadius = 0.75f; serveTrackingFactor = 0.90f; break;
+            case 5: hitRadius = 0.80f; serveTrackingFactor = 0.95f; break;
         }
     }
 
@@ -155,10 +184,37 @@ public class EnemyAIController : MonoBehaviour
             if (ball == null || ballScript == null) return;
         }
 
+        if (playerTransform == null)
+        {
+            FindPlayerReferences();
+        }
+
         if (isServingMode || isHitting) return;
 
         UpdateHitAreaPosition();
 
+        // 1. Checa se o Player 1 está na fase de preparação do saque
+        bool isPlayerPreparingServe = (ballScript != null && ballScript.IsServing && ballScript.IsPlayer1Serving);
+
+        if (isPlayerPreparingServe)
+        {
+            reactionTimer = 0f;
+
+            if (playerTransform != null)
+            {
+                // Acompanha lateralmente a posição do Player com base na bissetriz angular de quadra
+                float desiredX = Mathf.Clamp(playerTransform.position.x * serveTrackingFactor, minX, maxX);
+                currentServeTrackX = Mathf.Lerp(currentServeTrackX, desiredX, Time.deltaTime * serveTrackingSmoothness);
+                targetPosition = new Vector2(currentServeTrackX, homePosition.y);
+            }
+            else
+            {
+                targetPosition = homePosition;
+            }
+            return;
+        }
+
+        // 2. Se a bola não estiver em rally ativo, mantém posição base
         if (!ballScript.IsRallyActive)
         {
             reactionTimer = 0f;
@@ -166,14 +222,21 @@ public class EnemyAIController : MonoBehaviour
             return;
         }
 
+        // 3. Rally em andamento: calcula a posição de interceptação da bola
         reactionTimer += Time.deltaTime;
 
-        if (reactionTimer >= currentDifficulty.reactionDelay)
+        // Na devolução do saque (bola subindo vinda da linha de base do player), usa delay de reação calibrado para devolução rápida
+        bool isServeReturn = (ballScript.TargetDirection.y > 0.05f && ball.position.y < 0f);
+        float effectiveDelay = isServeReturn 
+            ? Mathf.Min(currentDifficulty.reactionDelay, 0.08f) 
+            : currentDifficulty.reactionDelay;
+
+        if (reactionTimer >= effectiveDelay)
         {
             CalculateTargetPosition();
         }
 
-        // Checagem robusta de rebatida da IA
+        // 4. Checagem robusta de rebatida da IA
         if (canHit && !isHitting)
         {
             // A IA só deve rebater quando a bola estiver se aproximando dela (subindo na quadra)
@@ -210,12 +273,30 @@ public class EnemyAIController : MonoBehaviour
             return;
         }
 
-        if (!ballScript.IsRallyActive || reactionTimer < currentDifficulty.reactionDelay)
+        // Modo de acompanhamento de saque: move-se na linha de base acompanhando o player
+        if (ballScript.IsServing && ballScript.IsPlayer1Serving)
+        {
+            MoveTowardsTarget(currentDifficulty.moveSpeed * serveTrackingSpeedMultiplier);
+            return;
+        }
+
+        // Rally normal: só movimenta após cumprir o tempo de reação
+        bool isServeReturn = (ballScript.TargetDirection.y > 0.05f && ball.position.y < 0f);
+        float effectiveDelay = isServeReturn 
+            ? Mathf.Min(currentDifficulty.reactionDelay, 0.08f) 
+            : currentDifficulty.reactionDelay;
+
+        if (!ballScript.IsRallyActive || reactionTimer < effectiveDelay)
         {
             StopMovement();
             return;
         }
 
+        MoveTowardsTarget(currentDifficulty.moveSpeed);
+    }
+
+    private void MoveTowardsTarget(float speed)
+    {
         float distance = Vector2.Distance(rb.position, targetPosition);
         float threshold = isMoving ? stopDistance : resumeDistance;
 
@@ -228,7 +309,7 @@ public class EnemyAIController : MonoBehaviour
 
         isMoving = true;
 
-        Vector2 newPos = Vector2.MoveTowards(rb.position, targetPosition, currentDifficulty.moveSpeed * Time.fixedDeltaTime);
+        Vector2 newPos = Vector2.MoveTowards(rb.position, targetPosition, speed * Time.fixedDeltaTime);
         newPos.x = Mathf.Clamp(newPos.x, minX, maxX);
         newPos.y = Mathf.Clamp(newPos.y, minY, maxY);
 
@@ -284,6 +365,18 @@ public class EnemyAIController : MonoBehaviour
         // Se a bola estiver subindo em direção à metade da quadra da IA
         if (ballScript != null && ballScript.TargetDirection.y > 0.05f)
         {
+            // Predição do ponto de chegada X na linha de defesa da IA
+            Vector2 dir = ballScript.ActualDirection;
+            if (dir.y > 0.05f)
+            {
+                float dy = homePosition.y - ball.position.y;
+                if (dy > 0f)
+                {
+                    float predictedX = ball.position.x + dy * (dir.x / dir.y);
+                    targetX = Mathf.Clamp(predictedX, minX, maxX);
+                }
+            }
+
             if (ball.position.y < homePosition.y - 0.4f)
             {
                 // Acompanha a aproximação mantendo distância ideal para contato frontal
@@ -344,6 +437,20 @@ public class EnemyAIController : MonoBehaviour
             Physics2D.SyncTransforms();
             targetPosition = servePosition;
         }
+        else
+        {
+            // Player 1 está preparando o saque: posiciona a IA na base pronta para acompanhar e receber
+            Vector3 receivingPos = new Vector3(homePosition.x, homePosition.y, transform.position.z);
+            transform.position = receivingPos;
+            if (rb != null)
+            {
+                rb.position = receivingPos;
+                rb.MovePosition(receivingPos);
+            }
+            Physics2D.SyncTransforms();
+            targetPosition = receivingPos;
+            currentServeTrackX = homePosition.x;
+        }
     }
 
     public void HitBall()
@@ -400,5 +507,10 @@ public class EnemyAIController : MonoBehaviour
         // Área de alcance frontal
         Gizmos.color = new Color(1f, 0.4f, 0f, 0.4f);
         Gizmos.DrawWireCube(transform.position - new Vector3(0f, hitRadius * 0.5f, 0f), new Vector3(hitRadius * 1.9f, hitRadius * 1.6f, 0f));
+
+        // Posição alvo de movimentação
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(targetPosition, 0.08f);
+        Gizmos.DrawLine(transform.position, targetPosition);
     }
 }

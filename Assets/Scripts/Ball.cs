@@ -25,6 +25,8 @@ public class Ball : MonoBehaviour
     public float courtMaxX = 0.617f;
     public float courtMinY = -0.91f;
     public float courtMaxY = 0.91f;
+    [Tooltip("Posição Y da rede. Se a bola sair pelas laterais após passar da rede, conta como bola vencedora do atacante.")]
+    public float netY = 0f;
 
     [Header("Posições de Saque (Linha de Fundo)")]
     public Vector3 player1ServePosition = new Vector3(0f, -0.65f, 0f);
@@ -50,6 +52,8 @@ public class Ball : MonoBehaviour
     private SpriteRenderer spriteRenderer;
 
     public bool IsRallyActive => isBallInPlay && !isServing && !isProcessingPoint;
+    public bool IsServing => isServing;
+    public bool IsPlayer1Serving => isPlayer1Serving;
     public Vector2 TargetDirection => targetDirection;
     public Vector2 ActualDirection => actualDirection;
     public float CurrentSpeed => currentSpeed;
@@ -209,7 +213,16 @@ public class Ball : MonoBehaviour
         if (isPlayer1Serving && player1Transform != null)
         {
             player1Transform.SendMessage("HitBall", SendMessageOptions.DontRequireReceiver);
-            targetDirection = new Vector2(Random.Range(-0.2f, 0.2f), 1f).normalized; // Envia a bola para frente na quadra
+
+            float serveAngleX = Random.Range(-0.10f, 0.10f);
+            float horizontalInput = Input.GetAxisRaw("Horizontal");
+            if (Mathf.Abs(horizontalInput) > 0.1f)
+            {
+                serveAngleX = horizontalInput * 0.30f;
+                currentSpin = Mathf.Clamp(horizontalInput, -1f, 1f);
+            }
+
+            targetDirection = new Vector2(serveAngleX, 1f).normalized; // Envia a bola para frente na quadra
         }
         else if (!isPlayer1Serving && player2Transform != null)
         {
@@ -298,10 +311,15 @@ public class Ball : MonoBehaviour
         }
         else if (transform.position.x < courtMinX || transform.position.x > courtMaxX)
         {
-            // Se a bola saiu pela lateral da quadra: quem rebateu por último cometeu erro e perde o ponto!
-            // Se targetDirection.y > 0, o Player 1 rebateu para cima e errou -> ponto da IA (player1Scored = false)
-            // Se targetDirection.y < 0, a IA rebateu para baixo e errou -> ponto do Player 1 (player1Scored = true)
-            bool player1Scored = targetDirection.y < 0;
+            // Opção B: Divisão da quadra pela rede (netY)
+            // Se a bola saiu pela lateral no campo adversário (já cruzou a rede),
+            // considera-se uma bola angulada que o adversário não alcançou -> ponto do atacante (Winner)!
+            // Se a bola saiu pela lateral no próprio campo de quem rebateu (antes da rede),
+            // considera-se erro não forçado na rebatida -> ponto do oponente.
+            bool isPlayer1Hitter = targetDirection.y > 0;
+            bool crossedNet = isPlayer1Hitter ? (transform.position.y >= netY) : (transform.position.y <= netY);
+
+            bool player1Scored = isPlayer1Hitter ? crossedNet : !crossedNet;
             PointScored(player1Scored);
         }
     }
