@@ -90,6 +90,8 @@ public class Ball : MonoBehaviour
 
     void Update()
     {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished) return;
+
         if (isServing)
         {
             FollowServerPosition();
@@ -136,6 +138,8 @@ public class Ball : MonoBehaviour
     {
         CancelInvoke(nameof(ExecuteServe));
         CancelInvoke(nameof(EnablePointChecking));
+
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished) return;
 
         isBallInPlay = false;
         isServing = true;
@@ -191,6 +195,7 @@ public class Ball : MonoBehaviour
 
     public void ExecuteServe()
     {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished) return;
         if (!isServing) return;
 
         isServing = false;
@@ -266,7 +271,8 @@ public class Ball : MonoBehaviour
 
     private void CheckOutOfBounds()
     {
-        // Trava de segurança: NUNCA pontua durante o saque ou antes de liberar canCheckPoint
+        // Trava de segurança: NUNCA pontua durante o saque, antes de liberar canCheckPoint ou com o jogo finalizado
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished) return;
         if (isProcessingPoint || isServing || !canCheckPoint) return;
 
         if (transform.position.y > courtMaxY)

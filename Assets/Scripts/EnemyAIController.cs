@@ -103,6 +103,12 @@ public class EnemyAIController : MonoBehaviour
 
     void Update()
     {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished)
+        {
+            StopMovement();
+            return;
+        }
+
         if (ball == null || ballScript == null) return;
         if (isServingMode || isHitting) return;
 
@@ -131,6 +137,12 @@ public class EnemyAIController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished)
+        {
+            StopMovement();
+            return;
+        }
+
         if (isServingMode || isHitting || ball == null || ballScript == null)
         {
             StopMovement();

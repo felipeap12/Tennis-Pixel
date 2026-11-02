@@ -49,6 +49,12 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished)
+        {
+            if (animator != null) animator.SetBool("IsRunning", false);
+            return;
+        }
+
         movement.x = Input.GetAxisRaw("Horizontal");
         movement.y = Input.GetAxisRaw("Vertical");
 
@@ -73,6 +79,12 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished)
+        {
+            if (rb != null) rb.linearVelocity = Vector2.zero;
+            return;
+        }
+
         Vector2 targetPosition = rb.position + movement.normalized * moveSpeed * Time.fixedDeltaTime;
 
         targetPosition.x = Mathf.Clamp(targetPosition.x, minX, maxX);

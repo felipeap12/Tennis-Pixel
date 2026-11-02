@@ -43,6 +43,9 @@ public class ScoreboardHUD : MonoBehaviour
     public float levelTransitionFadeDuration = 0.25f;
     public AudioClip levelUpSound;
 
+    [Header("Tela Final de Vitória (Nível 5)")]
+    public AudioClip victorySound;
+
     // Componentes Visuais
     private Canvas rootCanvas;
     private RectTransform scoreboardCardRect;
@@ -98,6 +101,27 @@ public class ScoreboardHUD : MonoBehaviour
     // Dica de Controles
     private GameObject controlsHintObj;
     private CanvasGroup controlsHintCanvasGroup;
+
+    // Overlay de Tela Final de Vitória
+    private GameObject victoryOverlayObj;
+    private CanvasGroup victoryCanvasGroup;
+    private RectTransform victoryCardRect;
+    private TextMeshProUGUI txtVictoryTag;
+    private TextMeshProUGUI txtVictoryTrophy;
+    private TextMeshProUGUI txtVictoryTitle;
+    private TextMeshProUGUI txtVictorySubtitle;
+    private TextMeshProUGUI txtVictoryStats;
+    private TextMeshProUGUI txtVictoryFooter;
+    private Button btnVictoryRestart;
+    private Button btnVictoryMenu;
+    private Button btnVictoryQuit;
+    private Coroutine currentVictoryRoutine;
+    private bool isVictoryScreenOpen = false;
+    public bool IsVictoryScreenOpen => isVictoryScreenOpen;
+
+    private System.Action onVictoryRestartAction;
+    private System.Action onVictoryMenuAction;
+    private System.Action onVictoryQuitAction;
 
     // Cache interno de dados
     private int cachedP1Points = 0;
@@ -175,6 +199,31 @@ public class ScoreboardHUD : MonoBehaviour
         StartCoroutine(FadeOutControlsHintRoutine());
     }
 
+    void Update()
+    {
+        if (isVictoryScreenOpen)
+        {
+            // Atalhos de teclado quando a tela final de vitória estiver aberta:
+            // [ESPAÇO] ou [ENTER] = Jogar Novamente
+            // [ESC] = Voltar ao Menu Principal
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                OnVictoryRestartClicked();
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                OnVictoryMenuClicked();
+            }
+
+            // Efeito comemorativo de pulso contínuo no troféu
+            if (txtVictoryTrophy != null)
+            {
+                float pulse = 1f + (Mathf.Sin(Time.unscaledTime * 4.5f) * 0.08f);
+                txtVictoryTrophy.transform.localScale = new Vector3(pulse, pulse, 1f);
+            }
+        }
+    }
+
     /// <summary>
     /// Constrói e configura dinamicamente todo o HUD moderno com escala responsiva e estética de transmissão esportiva
     /// </summary>
@@ -228,6 +277,9 @@ public class ScoreboardHUD : MonoBehaviour
 
         // 10. Constrói o Overlay de Transição de Nível (Centro Cinematográfico)
         BuildLevelTransitionOverlay(rootCanvas.transform, baseFont);
+
+        // 11. Constrói o Overlay de Tela Final de Vitória (Centro Triunfante)
+        BuildVictoryScreenOverlay(rootCanvas.transform, baseFont);
     }
 
     private void HideOldScorePlaceholders()
@@ -1293,6 +1345,461 @@ public class ScoreboardHUD : MonoBehaviour
 
         // Executa a conclusão (atualiza o nível no GameManager e inicia o saque)
         onComplete?.Invoke();
+    }
+
+    #endregion
+
+    #region Tela Final de Vitória (Nível 5)
+
+    private void BuildVictoryScreenOverlay(Transform parent, TMP_FontAsset font)
+    {
+        Transform existingOverlay = parent.Find("VictoryOverlay");
+        if (existingOverlay != null)
+        {
+            victoryOverlayObj = existingOverlay.gameObject;
+        }
+        else
+        {
+            victoryOverlayObj = new GameObject("VictoryOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(CanvasGroup));
+            victoryOverlayObj.transform.SetParent(parent, false);
+        }
+
+        RectTransform rOverlay = victoryOverlayObj.GetComponent<RectTransform>();
+        rOverlay.anchorMin = Vector2.zero;
+        rOverlay.anchorMax = Vector2.one;
+        rOverlay.pivot = new Vector2(0.5f, 0.5f);
+        rOverlay.sizeDelta = Vector2.zero;
+        rOverlay.anchoredPosition = Vector2.zero;
+
+        Image imgOverlay = victoryOverlayObj.GetComponent<Image>();
+        imgOverlay.color = new Color(0.02f, 0.04f, 0.08f, 0.95f);
+        imgOverlay.raycastTarget = true;
+
+        victoryCanvasGroup = victoryOverlayObj.GetComponent<CanvasGroup>();
+        if (victoryCanvasGroup == null) victoryCanvasGroup = victoryOverlayObj.AddComponent<CanvasGroup>();
+        victoryCanvasGroup.alpha = 0f;
+        victoryCanvasGroup.blocksRaycasts = false;
+
+        // Card Central de Vitória
+        Transform cardTr = victoryOverlayObj.transform.Find("VictoryCard");
+        GameObject cardObj;
+        if (cardTr != null)
+        {
+            cardObj = cardTr.gameObject;
+        }
+        else
+        {
+            cardObj = new GameObject("VictoryCard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            cardObj.transform.SetParent(victoryOverlayObj.transform, false);
+        }
+
+        victoryCardRect = cardObj.GetComponent<RectTransform>();
+        victoryCardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        victoryCardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        victoryCardRect.pivot = new Vector2(0.5f, 0.5f);
+        victoryCardRect.anchoredPosition = Vector2.zero;
+        victoryCardRect.sizeDelta = new Vector2(740f, 540f);
+
+        Image cardImg = cardObj.GetComponent<Image>();
+        cardImg.sprite = LoginManager.CreateRoundedRectSprite(64, 64, 16, cardBgColor, goldColor, 3);
+        cardImg.type = Image.Type.Sliced;
+        cardImg.color = Color.white;
+
+        // 1. Tag Superior Pill
+        GameObject tagObj = new GameObject("Tag_Pill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        tagObj.transform.SetParent(cardObj.transform, false);
+        RectTransform tagRect = tagObj.GetComponent<RectTransform>();
+        tagRect.anchorMin = new Vector2(0.5f, 1f);
+        tagRect.anchorMax = new Vector2(0.5f, 1f);
+        tagRect.pivot = new Vector2(0.5f, 1f);
+        tagRect.anchoredPosition = new Vector2(0f, -20f);
+        tagRect.sizeDelta = new Vector2(380f, 30f);
+
+        Image tagImg = tagObj.GetComponent<Image>();
+        tagImg.sprite = pillBadgeSprite;
+        tagImg.type = Image.Type.Sliced;
+
+        GameObject tagTxtObj = new GameObject("Txt_Tag", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        tagTxtObj.transform.SetParent(tagObj.transform, false);
+        RectTransform tagTxtRect = tagTxtObj.GetComponent<RectTransform>();
+        tagTxtRect.anchorMin = Vector2.zero;
+        tagTxtRect.anchorMax = Vector2.one;
+        tagTxtRect.sizeDelta = Vector2.zero;
+
+        txtVictoryTag = tagTxtObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtVictoryTag.font = font;
+        txtVictoryTag.fontSize = 13f;
+        txtVictoryTag.fontStyle = FontStyles.Bold;
+        txtVictoryTag.alignment = TextAlignmentOptions.Center;
+        txtVictoryTag.color = goldColor;
+        txtVictoryTag.text = "★ CIRCUITO MUNDIAL CONCLUÍDO ★";
+
+        // 2. Troféu Central Dourado
+        GameObject trophyObj = new GameObject("Txt_Trophy", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        trophyObj.transform.SetParent(cardObj.transform, false);
+        RectTransform trophyRect = trophyObj.GetComponent<RectTransform>();
+        trophyRect.anchorMin = new Vector2(0.5f, 1f);
+        trophyRect.anchorMax = new Vector2(0.5f, 1f);
+        trophyRect.pivot = new Vector2(0.5f, 1f);
+        trophyRect.anchoredPosition = new Vector2(0f, -62f);
+        trophyRect.sizeDelta = new Vector2(200f, 50f);
+
+        txtVictoryTrophy = trophyObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtVictoryTrophy.font = font;
+        txtVictoryTrophy.fontSize = 42f;
+        txtVictoryTrophy.alignment = TextAlignmentOptions.Center;
+        txtVictoryTrophy.text = "<color=#FACC15>★ 🏆 ★</color>";
+
+        // 3. Título Principal de Vitória
+        GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        titleObj.transform.SetParent(cardObj.transform, false);
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0.5f, 1f);
+        titleRect.anchorMax = new Vector2(0.5f, 1f);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.anchoredPosition = new Vector2(0f, -118f);
+        titleRect.sizeDelta = new Vector2(700f, 60f);
+
+        txtVictoryTitle = titleObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtVictoryTitle.font = font;
+        txtVictoryTitle.fontSize = 48f;
+        txtVictoryTitle.fontStyle = FontStyles.Bold;
+        txtVictoryTitle.alignment = TextAlignmentOptions.Center;
+        txtVictoryTitle.enableVertexGradient = true;
+        txtVictoryTitle.colorGradient = new VertexGradient(
+            new Color(1f, 0.98f, 0.45f, 1f),
+            new Color(1f, 0.98f, 0.45f, 1f),
+            goldColor,
+            goldColor
+        );
+        txtVictoryTitle.text = "GRANDE CAMPEÃO!";
+
+        // 4. Subtítulo Inspirador
+        GameObject subObj = new GameObject("Txt_Subtitle", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        subObj.transform.SetParent(cardObj.transform, false);
+        RectTransform subRect = subObj.GetComponent<RectTransform>();
+        subRect.anchorMin = new Vector2(0.5f, 1f);
+        subRect.anchorMax = new Vector2(0.5f, 1f);
+        subRect.pivot = new Vector2(0.5f, 1f);
+        subRect.anchoredPosition = new Vector2(0f, -172f);
+        subRect.sizeDelta = new Vector2(680f, 32f);
+
+        txtVictorySubtitle = subObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtVictorySubtitle.font = font;
+        txtVictorySubtitle.fontSize = 18f;
+        txtVictorySubtitle.fontStyle = FontStyles.Bold;
+        txtVictorySubtitle.alignment = TextAlignmentOptions.Center;
+        txtVictorySubtitle.color = new Color(0.75f, 0.85f, 0.95f, 0.9f);
+        txtVictorySubtitle.text = "Você finalizou com maestria o Nível 5 e dominou as quadras!";
+
+        // Divisória sutil
+        BuildDividerLine(cardObj.transform, new Vector2(0f, -210f), new Vector2(-100f, 1.5f), new Color(0.2f, 0.3f, 0.45f, 0.5f));
+
+        // 5. Painel de Estatísticas da Campanha
+        GameObject statsBoxObj = new GameObject("Box_Stats", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        statsBoxObj.transform.SetParent(cardObj.transform, false);
+        RectTransform statsBoxRect = statsBoxObj.GetComponent<RectTransform>();
+        statsBoxRect.anchorMin = new Vector2(0.5f, 1f);
+        statsBoxRect.anchorMax = new Vector2(0.5f, 1f);
+        statsBoxRect.pivot = new Vector2(0.5f, 1f);
+        statsBoxRect.anchoredPosition = new Vector2(0f, -225f);
+        statsBoxRect.sizeDelta = new Vector2(660f, 135f);
+
+        Image statsBoxImg = statsBoxObj.GetComponent<Image>();
+        statsBoxImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, new Color(0.06f, 0.10f, 0.16f, 0.95f), new Color(0.25f, 0.38f, 0.52f, 0.9f), 2);
+        statsBoxImg.type = Image.Type.Sliced;
+        statsBoxImg.color = Color.white;
+
+        GameObject statsTxtObj = new GameObject("Txt_Stats", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        statsTxtObj.transform.SetParent(statsBoxObj.transform, false);
+        RectTransform statsTxtRect = statsTxtObj.GetComponent<RectTransform>();
+        statsTxtRect.anchorMin = Vector2.zero;
+        statsTxtRect.anchorMax = Vector2.one;
+        statsTxtRect.sizeDelta = new Vector2(-28f, -16f);
+        statsTxtRect.anchoredPosition = Vector2.zero;
+
+        txtVictoryStats = statsTxtObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtVictoryStats.font = font;
+        txtVictoryStats.fontSize = 17f;
+        txtVictoryStats.fontStyle = FontStyles.Normal;
+        txtVictoryStats.alignment = TextAlignmentOptions.Center;
+        txtVictoryStats.lineSpacing = 12f;
+        txtVictoryStats.color = textWhite;
+        txtVictoryStats.text =
+            "<b><color=#FACC15>GRADUAÇÃO CONQUISTADA:</color></b>  PROFISSIONAL (NÍVEL 5)\n" +
+            "<b><color=#72F526>GRANDE FINAL:</color></b>  VOCÊ 2  x  0 I.A. RIVAL\n" +
+            "<b><color=#38BDF8>STATUS DO CIRCUITO:</color></b>  100% CONCLUÍDO (CAMPEÃO DO TORNEIO)";
+
+        // 6. Botões de Ação
+        // Botão 1: JOGAR NOVAMENTE
+        GameObject btnRestartObj = new GameObject("Btn_Restart", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnRestartObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnRestartRect = btnRestartObj.GetComponent<RectTransform>();
+        btnRestartRect.anchorMin = new Vector2(0.5f, 0f);
+        btnRestartRect.anchorMax = new Vector2(0.5f, 0f);
+        btnRestartRect.pivot = new Vector2(0.5f, 0f);
+        btnRestartRect.anchoredPosition = new Vector2(-200f, 75f);
+        btnRestartRect.sizeDelta = new Vector2(230f, 54f);
+
+        Image btnRestartImg = btnRestartObj.GetComponent<Image>();
+        btnRestartImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, p1Color, Color.white, 2);
+        btnRestartImg.type = Image.Type.Sliced;
+        btnRestartImg.color = Color.white;
+
+        btnVictoryRestart = btnRestartObj.GetComponent<Button>();
+        btnVictoryRestart.onClick.AddListener(OnVictoryRestartClicked);
+        btnRestartObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtRestartObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtRestartObj.transform.SetParent(btnRestartObj.transform, false);
+        RectTransform txtRestartRect = txtRestartObj.GetComponent<RectTransform>();
+        txtRestartRect.anchorMin = Vector2.zero;
+        txtRestartRect.anchorMax = Vector2.one;
+        txtRestartRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtRestart = txtRestartObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtRestart.font = font;
+        txtRestart.fontSize = 18f;
+        txtRestart.fontStyle = FontStyles.Bold;
+        txtRestart.alignment = TextAlignmentOptions.Center;
+        txtRestart.color = new Color(0.04f, 0.14f, 0.04f, 1f);
+        txtRestart.text = "JOGAR NOVAMENTE";
+
+        // Botão 2: MENU PRINCIPAL
+        GameObject btnMenuObj = new GameObject("Btn_Menu", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnMenuObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnMenuRect = btnMenuObj.GetComponent<RectTransform>();
+        btnMenuRect.anchorMin = new Vector2(0.5f, 0f);
+        btnMenuRect.anchorMax = new Vector2(0.5f, 0f);
+        btnMenuRect.pivot = new Vector2(0.5f, 0f);
+        btnMenuRect.anchoredPosition = new Vector2(50f, 75f);
+        btnMenuRect.sizeDelta = new Vector2(210f, 54f);
+
+        Image btnMenuImg = btnMenuObj.GetComponent<Image>();
+        btnMenuImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, new Color(0.12f, 0.18f, 0.28f, 0.95f), new Color(0.25f, 0.65f, 0.95f, 1f), 2);
+        btnMenuImg.type = Image.Type.Sliced;
+        btnMenuImg.color = Color.white;
+
+        btnVictoryMenu = btnMenuObj.GetComponent<Button>();
+        btnVictoryMenu.onClick.AddListener(OnVictoryMenuClicked);
+        btnMenuObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtMenuObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtMenuObj.transform.SetParent(btnMenuObj.transform, false);
+        RectTransform txtMenuRect = txtMenuObj.GetComponent<RectTransform>();
+        txtMenuRect.anchorMin = Vector2.zero;
+        txtMenuRect.anchorMax = Vector2.one;
+        txtMenuRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtMenu = txtMenuObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtMenu.font = font;
+        txtMenu.fontSize = 18f;
+        txtMenu.fontStyle = FontStyles.Bold;
+        txtMenu.alignment = TextAlignmentOptions.Center;
+        txtMenu.color = Color.white;
+        txtMenu.text = "MENU PRINCIPAL";
+
+        // Botão 3: SAIR
+        GameObject btnQuitObj = new GameObject("Btn_Quit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnQuitObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnQuitRect = btnQuitObj.GetComponent<RectTransform>();
+        btnQuitRect.anchorMin = new Vector2(0.5f, 0f);
+        btnQuitRect.anchorMax = new Vector2(0.5f, 0f);
+        btnQuitRect.pivot = new Vector2(0.5f, 0f);
+        btnQuitRect.anchoredPosition = new Vector2(235f, 75f);
+        btnQuitRect.sizeDelta = new Vector2(120f, 54f);
+
+        Image btnQuitImg = btnQuitObj.GetComponent<Image>();
+        btnQuitImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 10, new Color(0.08f, 0.12f, 0.18f, 0.95f), new Color(0.3f, 0.4f, 0.5f, 0.8f), 1);
+        btnQuitImg.type = Image.Type.Sliced;
+        btnQuitImg.color = Color.white;
+
+        btnVictoryQuit = btnQuitObj.GetComponent<Button>();
+        btnVictoryQuit.onClick.AddListener(OnVictoryQuitClicked);
+        btnQuitObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtQuitObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtQuitObj.transform.SetParent(btnQuitObj.transform, false);
+        RectTransform txtQuitRect = txtQuitObj.GetComponent<RectTransform>();
+        txtQuitRect.anchorMin = Vector2.zero;
+        txtQuitRect.anchorMax = Vector2.one;
+        txtQuitRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtQuit = txtQuitObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtQuit.font = font;
+        txtQuit.fontSize = 16f;
+        txtQuit.fontStyle = FontStyles.Bold;
+        txtQuit.alignment = TextAlignmentOptions.Center;
+        txtQuit.color = new Color(0.75f, 0.85f, 0.95f, 0.85f);
+        txtQuit.text = "SAIR";
+
+        // 7. Rodapé com Instruções de Teclado
+        GameObject footerObj = new GameObject("Txt_FooterHint", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        footerObj.transform.SetParent(cardObj.transform, false);
+        RectTransform footerRect = footerObj.GetComponent<RectTransform>();
+        footerRect.anchorMin = new Vector2(0.5f, 0f);
+        footerRect.anchorMax = new Vector2(0.5f, 0f);
+        footerRect.pivot = new Vector2(0.5f, 0f);
+        footerRect.anchoredPosition = new Vector2(0f, 22f);
+        footerRect.sizeDelta = new Vector2(660f, 30f);
+
+        txtVictoryFooter = footerObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtVictoryFooter.font = font;
+        txtVictoryFooter.fontSize = 14f;
+        txtVictoryFooter.fontStyle = FontStyles.Normal;
+        txtVictoryFooter.alignment = TextAlignmentOptions.Center;
+        txtVictoryFooter.color = new Color(0.6f, 0.7f, 0.8f, 0.85f);
+        txtVictoryFooter.text = "<b><color=#72F526>[ESPAÇO]</color></b> Reiniciar Torneio   <color=#475569>•</color>   <b><color=#38BDF8>[ESC]</color></b> Menu Principal";
+
+        victoryOverlayObj.SetActive(false);
+    }
+
+    /// <summary>
+    /// Exibe a tela final de vitória ao vencer o Nível 5
+    /// </summary>
+    public void ShowVictoryScreen(int p1Sets, int p2Sets, System.Action onRestart, System.Action onMenu, System.Action onQuit)
+    {
+        onVictoryRestartAction = onRestart;
+        onVictoryMenuAction = onMenu;
+        onVictoryQuitAction = onQuit;
+
+        if (currentVictoryRoutine != null)
+        {
+            StopCoroutine(currentVictoryRoutine);
+        }
+
+        currentVictoryRoutine = StartCoroutine(VictoryScreenRoutine(p1Sets, p2Sets));
+    }
+
+    /// <summary>
+    /// Oculta a tela final de vitória
+    /// </summary>
+    public void HideVictoryScreen()
+    {
+        isVictoryScreenOpen = false;
+        if (victoryOverlayObj != null)
+        {
+            victoryOverlayObj.SetActive(false);
+            if (victoryCanvasGroup != null)
+            {
+                victoryCanvasGroup.alpha = 0f;
+                victoryCanvasGroup.blocksRaycasts = false;
+            }
+        }
+    }
+
+    private IEnumerator VictoryScreenRoutine(int p1Sets, int p2Sets)
+    {
+        isVictoryScreenOpen = true;
+
+        if (victoryOverlayObj == null)
+        {
+            TMP_FontAsset baseFont = customFont ?? TMP_Settings.defaultFontAsset;
+            BuildVictoryScreenOverlay(rootCanvas.transform, baseFont);
+        }
+
+        if (victoryOverlayObj == null)
+        {
+            isVictoryScreenOpen = false;
+            yield break;
+        }
+
+        // Traz para o topo absoluto do Canvas
+        victoryOverlayObj.transform.SetAsLastSibling();
+        victoryOverlayObj.SetActive(true);
+
+        if (txtVictoryStats != null)
+        {
+            txtVictoryStats.text =
+                $"<b><color=#FACC15>GRADUAÇÃO CONQUISTADA:</color></b>  PROFISSIONAL (NÍVEL 5)\n" +
+                $"<b><color=#72F526>GRANDE FINAL:</color></b>  VOCÊ <color=#85F226>{p1Sets}</color>  x  <color=#F54761>{p2Sets}</color> I.A. RIVAL\n" +
+                $"<b><color=#38BDF8>STATUS DO CIRCUITO:</color></b>  100% CONCLUÍDO (CAMPEÃO DO TORNEIO)";
+        }
+
+        // Toca efeito sonoro de triunfo (áudio configurado ou fanfarra 8-bits sintetizada)
+        AudioClip soundToPlay = victorySound != null ? victorySound : (levelUpSound != null ? levelUpSound : GenerateRetroVictoryFanfare());
+        if (audioSource != null && soundToPlay != null)
+        {
+            audioSource.PlayOneShot(soundToPlay);
+        }
+
+        if (victoryCanvasGroup != null)
+        {
+            victoryCanvasGroup.blocksRaycasts = true;
+        }
+
+        // Animação punch-in elástica retrô
+        float elapsed = 0f;
+        float duration = 0.38f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            float scale = Mathf.Lerp(0.35f, 1.08f, Mathf.Sin(t * Mathf.PI * 0.5f));
+            if (t >= 0.75f)
+            {
+                scale = Mathf.Lerp(1.08f, 1.0f, (t - 0.75f) / 0.25f);
+            }
+
+            if (victoryCanvasGroup != null) victoryCanvasGroup.alpha = Mathf.Clamp01(t * 1.5f);
+            if (victoryCardRect != null) victoryCardRect.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+
+        if (victoryCardRect != null) victoryCardRect.localScale = Vector3.one;
+        if (victoryCanvasGroup != null) victoryCanvasGroup.alpha = 1f;
+
+        currentVictoryRoutine = null;
+    }
+
+    private void OnVictoryRestartClicked()
+    {
+        if (!isVictoryScreenOpen) return;
+        HideVictoryScreen();
+        onVictoryRestartAction?.Invoke();
+    }
+
+    private void OnVictoryMenuClicked()
+    {
+        if (!isVictoryScreenOpen) return;
+        HideVictoryScreen();
+        onVictoryMenuAction?.Invoke();
+    }
+
+    private void OnVictoryQuitClicked()
+    {
+        if (!isVictoryScreenOpen) return;
+        HideVictoryScreen();
+        onVictoryQuitAction?.Invoke();
+    }
+
+    private AudioClip GenerateRetroVictoryFanfare()
+    {
+        int sampleRate = 44100;
+        float duration = 1.6f;
+        int totalSamples = Mathf.FloorToInt(sampleRate * duration);
+        float[] samples = new float[totalSamples];
+
+        // Sequência de notas triunfantes: C4, E4, G4, C5 (acorde maior de vitória)
+        float[] freqs = new float[] { 261.63f, 329.63f, 392.00f, 523.25f };
+        float noteDuration = duration / freqs.Length;
+
+        for (int i = 0; i < totalSamples; i++)
+        {
+            float t = (float)i / sampleRate;
+            int noteIndex = Mathf.Clamp(Mathf.FloorToInt(t / noteDuration), 0, freqs.Length - 1);
+            float freq = freqs[noteIndex];
+            float noteTime = t - (noteIndex * noteDuration);
+
+            float envelope = Mathf.Clamp01(1f - (noteTime / noteDuration) * 0.4f);
+            float wave = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.6f + Mathf.Sign(Mathf.Sin(2f * Mathf.PI * freq * t)) * 0.15f;
+            samples[i] = wave * envelope * 0.45f;
+        }
+
+        AudioClip clip = AudioClip.Create("VictoryRetroFanfare", totalSamples, 1, sampleRate, false);
+        clip.SetData(samples, 0);
+        return clip;
     }
 
     #endregion

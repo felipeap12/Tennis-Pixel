@@ -6,6 +6,8 @@ using TMPro;
 
 public class LoginManager : MonoBehaviour
 {
+    public static LoginManager Instance { get; private set; }
+
     [Header("Botões do Menu (Opcionais - gerados automaticamente se nulos)")]
     public Button btnEntrar;
     public Button btnSair;
@@ -53,6 +55,16 @@ public class LoginManager : MonoBehaviour
 
     void Awake()
     {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         // Congela o tempo do jogo enquanto o menu estiver ativo
         Time.timeScale = 0f;
 
@@ -642,6 +654,44 @@ public class LoginManager : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #endif
+    }
+
+    /// <summary>
+    /// Reabre o menu principal (usado após a tela final de vitória ou retorno manual)
+    /// </summary>
+    public void ShowMenu()
+    {
+        isStartingGame = false;
+
+        if (loginPanel != null)
+        {
+            loginPanel.SetActive(true);
+        }
+
+        if (cardCanvasGroup != null)
+        {
+            cardCanvasGroup.alpha = 1f;
+        }
+
+        if (cardContainerRect != null)
+        {
+            cardContainerRect.localScale = Vector3.one;
+        }
+
+        if (transitionOverlayObj != null)
+        {
+            transitionOverlayObj.SetActive(false);
+            if (transitionCanvasGroup != null)
+            {
+                transitionCanvasGroup.alpha = 0f;
+                transitionCanvasGroup.blocksRaycasts = false;
+            }
+        }
+
+        if (btnEntrar != null) btnEntrar.interactable = true;
+        if (btnSair != null) btnSair.interactable = true;
+
+        Time.timeScale = 0f;
     }
 
     /// <summary>

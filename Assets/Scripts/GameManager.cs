@@ -29,6 +29,12 @@ public class GameManager : MonoBehaviour
     public int player1Sets = 0;
     public int player2Sets = 0;
 
+    [Header("Estado do Jogo e Vitória")]
+    public bool isGameFinished = false;
+    public bool isGameWon = false;
+    public bool IsGameFinished => isGameFinished;
+    public bool IsGameWon => isGameWon;
+
     [Header("Interface de Usuário (Compatibilidade TMP)")]
     public TextMeshProUGUI txtPlayer1Points;
     public TextMeshProUGUI txtPlayer2Points;
@@ -58,6 +64,7 @@ public class GameManager : MonoBehaviour
         // Teclas de atalho para teste em tempo real:
         // [L] = Avança de nível exibindo a nova tela de transição
         // [K] = Volta de nível exibindo a nova tela de transição
+        // [V] = Força a vitória final e tela de campeão (Nível 5)
         if (Input.GetKeyDown(KeyCode.L))
         {
             DebugAdvanceLevel();
@@ -65,6 +72,10 @@ public class GameManager : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.K))
         {
             DebugRegressLevel();
+        }
+        else if (Input.GetKeyDown(KeyCode.V))
+        {
+            DebugTriggerVictory();
         }
     }
 
@@ -95,6 +106,8 @@ public class GameManager : MonoBehaviour
     /// </summary>
     public void StartGameFromMenu()
     {
+        isGameFinished = false;
+        isGameWon = false;
         ResetMatch();
 
         if (ballScript != null)
@@ -206,18 +219,18 @@ public class GameManager : MonoBehaviour
             if (txtMatchStatus != null)
                 txtMatchStatus.text = "VOCÊ VENCEU A PARTIDA!";
 
-            if (ScoreboardHUD.Instance != null)
-            {
-                ScoreboardHUD.Instance.ShowAnnouncement("🏆 VOCÊ VENCEU A PARTIDA!", ScoreboardHUD.Instance.goldColor, 1.8f);
-            }
-
             if (currentLevel < 5)
             {
+                if (ScoreboardHUD.Instance != null)
+                {
+                    ScoreboardHUD.Instance.ShowAnnouncement("🏆 VOCÊ VENCEU A PARTIDA!", ScoreboardHUD.Instance.goldColor, 1.8f);
+                }
                 Invoke(nameof(StartNextLevelTransition), 1.8f);
             }
             else
             {
-                Invoke(nameof(StartChampionTransition), 1.8f);
+                // Nível 5 concluído com sucesso -> Finalização oficial do jogo com vitória!
+                FinishGameWithVictory();
             }
         }
         else if (player2Sets >= 2)
@@ -258,20 +271,103 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void StartChampionTransition()
+    /// <summary>
+    /// Finaliza o jogo oficialmente com vitória ao vencer a final do Nível 5
+    /// </summary>
+    public void FinishGameWithVictory()
     {
-        string grad = (levelGraduations != null && currentLevel <= levelGraduations.Length) ? levelGraduations[currentLevel - 1] : "Profissional";
+        isGameFinished = true;
+        isGameWon = true;
+
+        if (txtMatchStatus != null)
+            txtMatchStatus.text = "★ PARABÉNS! VOCÊ É O GRANDE CAMPEÃO! ★";
+
+        if (ballScript != null)
+        {
+            ballScript.CancelInvoke();
+        }
+
         if (ScoreboardHUD.Instance != null)
         {
-            ScoreboardHUD.Instance.ShowChampionTransition(currentLevel, grad, () =>
-            {
-                ResetMatchAndServe();
-            });
+            ScoreboardHUD.Instance.ShowAnnouncement("👑 GRANDE CAMPEÃO DO CIRCUITO!", ScoreboardHUD.Instance.goldColor, 2.0f);
         }
-        else
+
+        Invoke(nameof(OpenVictoryScreen), 1.8f);
+    }
+
+    private void OpenVictoryScreen()
+    {
+        if (ScoreboardHUD.Instance != null)
         {
-            ResetMatchAndServe();
+            ScoreboardHUD.Instance.ShowVictoryScreen(
+                player1Sets,
+                player2Sets,
+                RestartTournament,
+                ReturnToMainMenu,
+                QuitGame
+            );
         }
+    }
+
+    /// <summary>
+    /// Reinicia o circuito do torneio a partir do nível 1 para uma nova campanha
+    /// </summary>
+    public void RestartTournament()
+    {
+        isGameFinished = false;
+        isGameWon = false;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.HideVictoryScreen();
+        }
+
+        ApplyGlobalLevel(1);
+        ResetMatchAndServe();
+    }
+
+    /// <summary>
+    /// Retorna à tela inicial de Login/Menu
+    /// </summary>
+    public void ReturnToMainMenu()
+    {
+        isGameFinished = false;
+        isGameWon = false;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.HideVictoryScreen();
+        }
+
+        ApplyGlobalLevel(1);
+        ResetMatch();
+
+        LoginManager lm = LoginManager.Instance ?? FindAnyObjectByType<LoginManager>();
+        if (lm != null)
+        {
+            lm.ShowMenu();
+        }
+    }
+
+    /// <summary>
+    /// Encerra a aplicação
+    /// </summary>
+    public void QuitGame()
+    {
+        Application.Quit();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#endif
+    }
+
+    [ContextMenu("Testar Tela de Vitória Final (V)")]
+    public void DebugTriggerVictory()
+    {
+        currentLevel = 5;
+        player1Sets = 2;
+        player2Sets = 1;
+        UpdateUI();
+        FinishGameWithVictory();
     }
 
     private void StartRetryLevelTransition()
