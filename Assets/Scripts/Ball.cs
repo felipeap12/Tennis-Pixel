@@ -50,6 +50,9 @@ public class Ball : MonoBehaviour
     private SpriteRenderer spriteRenderer;
 
     public bool IsRallyActive => isBallInPlay && !isServing && !isProcessingPoint;
+    public Vector2 TargetDirection => targetDirection;
+    public Vector2 ActualDirection => actualDirection;
+    public float CurrentSpeed => currentSpeed;
 
     void Start()
     {
@@ -117,7 +120,7 @@ public class Ball : MonoBehaviour
             actualDirection = Vector2.Lerp(actualDirection, desiredDirection, Time.deltaTime * curveSmoothness);
 
             // Move a bola na direção curvada mantendo a velocidade constante
-            transform.Translate(actualDirection * currentSpeed * Time.deltaTime);
+            transform.Translate(actualDirection * currentSpeed * Time.deltaTime, Space.World);
             CheckOutOfBounds();
         }
     }
@@ -200,6 +203,8 @@ public class Ball : MonoBehaviour
 
         isServing = false;
         currentSpin = 0f;
+        isBallInPlay = true;
+        currentSpeed = baseSpeed;
 
         if (isPlayer1Serving && player1Transform != null)
         {
@@ -217,8 +222,6 @@ public class Ball : MonoBehaviour
         }
 
         actualDirection = targetDirection;
-        currentSpeed = baseSpeed;
-        isBallInPlay = true;
 
         // Libera a validação de pontos 0.3s depois de a bola já ter entrado em movimento
         Invoke(nameof(EnablePointChecking), 0.3f);
@@ -232,6 +235,8 @@ public class Ball : MonoBehaviour
     public void OnHitByPlayer(object[] data)
     {
         if (isServing || !isBallInPlay) return;
+        // Evita rebatida dupla se a bola já estiver subindo
+        if (targetDirection.y > 0.1f) return;
 
         Vector3 playerPos = (Vector3)data[0];
         Vector2 playerVelocity = (Vector2)data[1];
@@ -244,6 +249,8 @@ public class Ball : MonoBehaviour
     public void OnHitByPlayer(Vector3 playerPosition)
     {
         if (isServing || !isBallInPlay) return;
+        if (targetDirection.y > 0.1f) return;
+
         currentSpin = 0f;
         CalculateReturnDirection(transform.position, playerPosition, 1f);
     }
@@ -251,13 +258,19 @@ public class Ball : MonoBehaviour
     public void OnHitByEnemy(Vector3 enemyPosition)
     {
         if (isServing || !isBallInPlay) return;
+        // Evita rebatida dupla se a bola já estiver descendo
+        if (targetDirection.y < -0.1f) return;
+
         currentSpin = 0f;
         CalculateReturnDirection(transform.position, enemyPosition, -1f);
     }
 
     private void CalculateReturnDirection(Vector3 ballPos, Vector3 hitterPos, float targetYDirection)
     {
-        float xOffset = (ballPos.x - hitterPos.x) * 0.8f;
+        // Clampa o desvio lateral para garantir que a bola siga sempre em direção ao campo adversário
+        float rawOffset = (ballPos.x - hitterPos.x) * 0.75f;
+        float xOffset = Mathf.Clamp(rawOffset, -1.15f, 1.15f);
+
         targetDirection = new Vector2(xOffset, targetYDirection).normalized;
         actualDirection = targetDirection;
         currentSpeed = Mathf.Min(currentSpeed + speedIncreasePerHit, maxSpeed);
@@ -285,8 +298,11 @@ public class Ball : MonoBehaviour
         }
         else if (transform.position.x < courtMinX || transform.position.x > courtMaxX)
         {
-            bool pointForPlayer1 = targetDirection.y > 0;
-            PointScored(pointForPlayer1);
+            // Se a bola saiu pela lateral da quadra: quem rebateu por último cometeu erro e perde o ponto!
+            // Se targetDirection.y > 0, o Player 1 rebateu para cima e errou -> ponto da IA (player1Scored = false)
+            // Se targetDirection.y < 0, a IA rebateu para baixo e errou -> ponto do Player 1 (player1Scored = true)
+            bool player1Scored = targetDirection.y < 0;
+            PointScored(player1Scored);
         }
     }
 

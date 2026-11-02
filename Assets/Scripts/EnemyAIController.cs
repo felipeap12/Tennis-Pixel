@@ -31,7 +31,7 @@ public class EnemyAIController : MonoBehaviour
     [Header("Referências")]
     public Transform ball;
     public Transform hitArea;
-    public float hitRadius = 0.45f;
+    public float hitRadius = 0.60f;
 
     [Header("Limites da IA (Quadra)")]
     public float minX = -0.617f;
@@ -45,7 +45,7 @@ public class EnemyAIController : MonoBehaviour
     public float resumeDistance = 0.04f;
 
     [Header("Rebatida")]
-    public float hitDuration = 0.4f;
+    public float hitDuration = 0.35f;
 
     [Header("Animator")]
     public string idleStateName = "Player2_Idle";
@@ -56,6 +56,7 @@ public class EnemyAIController : MonoBehaviour
     private Ball ballScript;
 
     private Vector2 targetPosition;
+    private Vector3 initialHitAreaLocalPos = new Vector3(0f, -0.25f, 0f);
     private float reactionTimer;
     private bool isServingMode = false;
     private bool isHitting = false;
@@ -78,12 +79,23 @@ public class EnemyAIController : MonoBehaviour
         }
         if (animator != null) animator.applyRootMotion = false;
 
-        if (ball != null) ballScript = ball.GetComponent<Ball>();
+        FindBallReferences();
 
         if (hitArea == null)
         {
             Transform found = transform.Find("HitArea");
             if (found != null) hitArea = found;
+        }
+
+        // Corrige offsets corrompidos ou assimétricos na cena
+        if (hitArea != null)
+        {
+            Vector3 locPos = hitArea.localPosition;
+            if (Mathf.Abs(locPos.x) > 0.35f || locPos.y < -0.45f || locPos.y > 0.2f)
+            {
+                hitArea.localPosition = new Vector3(0f, -0.25f, 0f);
+            }
+            initialHitAreaLocalPos = hitArea.localPosition;
         }
 
         if (minX > maxX) { float t = minX; minX = maxX; maxX = t; }
@@ -92,13 +104,41 @@ public class EnemyAIController : MonoBehaviour
         homePosition = new Vector2(Mathf.Clamp(homePosition.x, minX, maxX), Mathf.Clamp(homePosition.y, minY, maxY));
         targetPosition = homePosition;
 
+        hitRadius = Mathf.Max(hitRadius, 0.60f);
         ApplyLevel(currentLevel);
+    }
+
+    void Start()
+    {
+        FindBallReferences();
+    }
+
+    private void FindBallReferences()
+    {
+        if (ballScript == null)
+        {
+            ballScript = FindAnyObjectByType<Ball>();
+        }
+        if (ball == null && ballScript != null)
+        {
+            ball = ballScript.transform;
+        }
     }
 
     public void ApplyLevel(int level)
     {
         currentLevel = Mathf.Clamp(level, 1, 5);
         currentDifficulty = DifficultyPresets[currentLevel - 1];
+
+        // Escala o raio de golpe da IA de forma justa de acordo com a graduação
+        switch (currentLevel)
+        {
+            case 1: hitRadius = 0.60f; break;
+            case 2: hitRadius = 0.65f; break;
+            case 3: hitRadius = 0.70f; break;
+            case 4: hitRadius = 0.75f; break;
+            case 5: hitRadius = 0.80f; break;
+        }
     }
 
     void Update()
@@ -109,8 +149,15 @@ public class EnemyAIController : MonoBehaviour
             return;
         }
 
-        if (ball == null || ballScript == null) return;
+        if (ball == null || ballScript == null)
+        {
+            FindBallReferences();
+            if (ball == null || ballScript == null) return;
+        }
+
         if (isServingMode || isHitting) return;
+
+        UpdateHitAreaPosition();
 
         if (!ballScript.IsRallyActive)
         {
@@ -126,11 +173,25 @@ public class EnemyAIController : MonoBehaviour
             CalculateTargetPosition();
         }
 
-        if (canHit && hitArea != null)
+        // Checagem robusta de rebatida da IA
+        if (canHit && !isHitting)
         {
-            if (Vector2.Distance(hitArea.position, ball.position) <= hitRadius)
+            // A IA só deve rebater quando a bola estiver se aproximando dela (subindo na quadra)
+            if (ballScript.TargetDirection.y > 0.05f)
             {
-                HitBall();
+                Vector3 strikePos = GetStrikePosition();
+                float dist = Vector2.Distance(strikePos, ball.position);
+
+                // Checagem de alcance frontal e lateral ao redor da IA
+                float dx = Mathf.Abs(ball.position.x - transform.position.x);
+                float dy = transform.position.y - ball.position.y; // positivo quando a bola está à frente da IA
+
+                bool inFrontalReach = (dx <= hitRadius * 0.95f) && (dy >= -0.20f && dy <= hitRadius * 1.30f);
+
+                if (dist <= hitRadius || inFrontalReach)
+                {
+                    HitBall();
+                }
             }
         }
     }
@@ -190,18 +251,48 @@ public class EnemyAIController : MonoBehaviour
         }
     }
 
+    private void UpdateHitAreaPosition()
+    {
+        if (hitArea == null) return;
+
+        bool facingLeft = spriteRenderer != null && spriteRenderer.flipX;
+        float targetX = facingLeft ? -Mathf.Abs(initialHitAreaLocalPos.x) : Mathf.Abs(initialHitAreaLocalPos.x);
+
+        if (Mathf.Abs(hitArea.localPosition.x - targetX) > 0.001f)
+        {
+            hitArea.localPosition = new Vector3(targetX, initialHitAreaLocalPos.y, initialHitAreaLocalPos.z);
+        }
+    }
+
+    public Vector3 GetStrikePosition()
+    {
+        if (hitArea != null)
+        {
+            return hitArea.position;
+        }
+
+        bool facingLeft = spriteRenderer != null && spriteRenderer.flipX;
+        float offsetX = facingLeft ? -Mathf.Abs(initialHitAreaLocalPos.x) : Mathf.Abs(initialHitAreaLocalPos.x);
+        return transform.position + new Vector3(offsetX, initialHitAreaLocalPos.y, 0f);
+    }
+
     void CalculateTargetPosition()
     {
         float targetX = Mathf.Clamp(ball.position.x, minX, maxX);
         float targetY = homePosition.y;
 
-        if (ball.position.y > 0f && ball.position.y < targetY)
+        // Se a bola estiver subindo em direção à metade da quadra da IA
+        if (ballScript != null && ballScript.TargetDirection.y > 0.05f)
         {
-            targetY = Mathf.Max(minY, ball.position.y - 0.03f);
-        }
-        else if (ball.position.y > 0.55f)
-        {
-            targetY = Mathf.Clamp(ball.position.y, minY, maxY);
+            if (ball.position.y < homePosition.y - 0.4f)
+            {
+                // Acompanha a aproximação mantendo distância ideal para contato frontal
+                targetY = Mathf.Clamp(ball.position.y + 0.35f, minY, maxY);
+            }
+            else
+            {
+                targetY = Mathf.Clamp(ball.position.y, minY, maxY);
+            }
         }
 
         targetPosition = new Vector2(targetX, targetY);
@@ -267,11 +358,29 @@ public class EnemyAIController : MonoBehaviour
         StopMovement();
         SetRunning(false, true);
 
-        if (animator != null)
-            animator.SetTrigger("Hit");
+        // Vira a IA para a direção da bola no instante do impacto
+        if (spriteRenderer != null && ball != null)
+        {
+            float diffX = ball.position.x - transform.position.x;
+            if (Mathf.Abs(diffX) > 0.05f)
+            {
+                spriteRenderer.flipX = diffX < 0f;
+            }
+        }
 
-        if (ball != null)
+        if (animator != null)
+        {
+            animator.SetTrigger("Hit");
+        }
+
+        if (ballScript != null)
+        {
+            ballScript.OnHitByEnemy(transform.position);
+        }
+        else if (ball != null)
+        {
             ball.SendMessage("OnHitByEnemy", transform.position, SendMessageOptions.DontRequireReceiver);
+        }
 
         Invoke(nameof(ResetHitState), hitDuration);
     }
@@ -284,10 +393,12 @@ public class EnemyAIController : MonoBehaviour
 
     private void OnDrawGizmosSelected()
     {
-        if (hitArea != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(hitArea.position, hitRadius);
-        }
+        Vector3 strikePos = GetStrikePosition();
+        Gizmos.color = isHitting ? Color.green : Color.red;
+        Gizmos.DrawWireSphere(strikePos, hitRadius);
+
+        // Área de alcance frontal
+        Gizmos.color = new Color(1f, 0.4f, 0f, 0.4f);
+        Gizmos.DrawWireCube(transform.position - new Vector3(0f, hitRadius * 0.5f, 0f), new Vector3(hitRadius * 1.9f, hitRadius * 1.6f, 0f));
     }
 }
