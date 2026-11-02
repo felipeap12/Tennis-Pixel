@@ -29,11 +29,13 @@ public class GameManager : MonoBehaviour
     public int player1Sets = 0;
     public int player2Sets = 0;
 
-    [Header("Estado do Jogo e Vitória")]
+    [Header("Estado do Jogo, Vitória e Derrota")]
     public bool isGameFinished = false;
     public bool isGameWon = false;
+    public bool isGameDefeated = false;
     public bool IsGameFinished => isGameFinished;
     public bool IsGameWon => isGameWon;
+    public bool IsGameDefeated => isGameDefeated;
 
     [Header("Interface de Usuário (Compatibilidade TMP)")]
     public TextMeshProUGUI txtPlayer1Points;
@@ -65,6 +67,7 @@ public class GameManager : MonoBehaviour
         // [L] = Avança de nível exibindo a nova tela de transição
         // [K] = Volta de nível exibindo a nova tela de transição
         // [V] = Força a vitória final e tela de campeão (Nível 5)
+        // [J] = Força a derrota no nível atual e tela de Game Over
         if (Input.GetKeyDown(KeyCode.L))
         {
             DebugAdvanceLevel();
@@ -76,6 +79,10 @@ public class GameManager : MonoBehaviour
         else if (Input.GetKeyDown(KeyCode.V))
         {
             DebugTriggerVictory();
+        }
+        else if (Input.GetKeyDown(KeyCode.J))
+        {
+            DebugTriggerDefeat();
         }
     }
 
@@ -108,6 +115,14 @@ public class GameManager : MonoBehaviour
     {
         isGameFinished = false;
         isGameWon = false;
+        isGameDefeated = false;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.HideVictoryScreen();
+            ScoreboardHUD.Instance.HideDefeatScreen();
+        }
+
         ResetMatch();
 
         if (ballScript != null)
@@ -235,15 +250,8 @@ public class GameManager : MonoBehaviour
         }
         else if (player2Sets >= 2)
         {
-            if (txtMatchStatus != null)
-                txtMatchStatus.text = "A I.A. VENCEU A PARTIDA!";
-
-            if (ScoreboardHUD.Instance != null)
-            {
-                ScoreboardHUD.Instance.ShowAnnouncement("💔 A I.A. VENCEU A PARTIDA!", ScoreboardHUD.Instance.p2Color, 1.8f);
-            }
-
-            Invoke(nameof(StartRetryLevelTransition), 1.8f);
+            // A I.A. venceu a partida -> Derrota oficial (pode acontecer em qualquer nível do jogo)
+            FinishGameWithDefeat();
         }
     }
 
@@ -310,16 +318,82 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Finaliza o jogo oficialmente com derrota ao perder a partida contra a I.A. em qualquer nível
+    /// </summary>
+    public void FinishGameWithDefeat()
+    {
+        isGameFinished = true;
+        isGameWon = false;
+        isGameDefeated = true;
+
+        if (txtMatchStatus != null)
+            txtMatchStatus.text = "FIM DE JOGO - VOCÊ FOI ELIMINADO!";
+
+        if (ballScript != null)
+        {
+            ballScript.CancelInvoke();
+        }
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.ShowAnnouncement("💔 VOCÊ FOI ELIMINADO!", ScoreboardHUD.Instance.p2Color, 2.0f);
+        }
+
+        Invoke(nameof(OpenDefeatScreen), 1.8f);
+    }
+
+    private void OpenDefeatScreen()
+    {
+        if (ScoreboardHUD.Instance != null)
+        {
+            string grad = (levelGraduations != null && currentLevel <= levelGraduations.Length)
+                ? levelGraduations[currentLevel - 1]
+                : $"Nível {currentLevel}";
+
+            ScoreboardHUD.Instance.ShowDefeatScreen(
+                currentLevel,
+                grad,
+                player1Sets,
+                player2Sets,
+                RestartGameFromZero,
+                ReturnToMainMenu,
+                QuitGame
+            );
+        }
+    }
+
+    /// <summary>
     /// Reinicia o circuito do torneio a partir do nível 1 para uma nova campanha
     /// </summary>
     public void RestartTournament()
     {
         isGameFinished = false;
         isGameWon = false;
+        isGameDefeated = false;
 
         if (ScoreboardHUD.Instance != null)
         {
             ScoreboardHUD.Instance.HideVictoryScreen();
+            ScoreboardHUD.Instance.HideDefeatScreen();
+        }
+
+        ApplyGlobalLevel(1);
+        ResetMatchAndServe();
+    }
+
+    /// <summary>
+    /// Reinicia o jogo do zero (Nível 1, placar e sets zerados) após uma derrota
+    /// </summary>
+    public void RestartGameFromZero()
+    {
+        isGameFinished = false;
+        isGameWon = false;
+        isGameDefeated = false;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.HideVictoryScreen();
+            ScoreboardHUD.Instance.HideDefeatScreen();
         }
 
         ApplyGlobalLevel(1);
@@ -333,10 +407,12 @@ public class GameManager : MonoBehaviour
     {
         isGameFinished = false;
         isGameWon = false;
+        isGameDefeated = false;
 
         if (ScoreboardHUD.Instance != null)
         {
             ScoreboardHUD.Instance.HideVictoryScreen();
+            ScoreboardHUD.Instance.HideDefeatScreen();
         }
 
         ApplyGlobalLevel(1);
@@ -368,6 +444,15 @@ public class GameManager : MonoBehaviour
         player2Sets = 1;
         UpdateUI();
         FinishGameWithVictory();
+    }
+
+    [ContextMenu("Testar Tela de Derrota (J)")]
+    public void DebugTriggerDefeat()
+    {
+        player1Sets = 0;
+        player2Sets = 2;
+        UpdateUI();
+        FinishGameWithDefeat();
     }
 
     private void StartRetryLevelTransition()

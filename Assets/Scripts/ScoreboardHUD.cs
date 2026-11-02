@@ -46,6 +46,9 @@ public class ScoreboardHUD : MonoBehaviour
     [Header("Tela Final de Vitória (Nível 5)")]
     public AudioClip victorySound;
 
+    [Header("Tela de Derrota (Game Over em Qualquer Nível)")]
+    public AudioClip defeatSound;
+
     // Componentes Visuais
     private Canvas rootCanvas;
     private RectTransform scoreboardCardRect;
@@ -122,6 +125,27 @@ public class ScoreboardHUD : MonoBehaviour
     private System.Action onVictoryRestartAction;
     private System.Action onVictoryMenuAction;
     private System.Action onVictoryQuitAction;
+
+    // Overlay de Tela de Derrota (Game Over)
+    private GameObject defeatOverlayObj;
+    private CanvasGroup defeatCanvasGroup;
+    private RectTransform defeatCardRect;
+    private TextMeshProUGUI txtDefeatTag;
+    private TextMeshProUGUI txtDefeatIcon;
+    private TextMeshProUGUI txtDefeatTitle;
+    private TextMeshProUGUI txtDefeatSubtitle;
+    private TextMeshProUGUI txtDefeatStats;
+    private TextMeshProUGUI txtDefeatFooter;
+    private Button btnDefeatRestart;
+    private Button btnDefeatMenu;
+    private Button btnDefeatQuit;
+    private Coroutine currentDefeatRoutine;
+    private bool isDefeatScreenOpen = false;
+    public bool IsDefeatScreenOpen => isDefeatScreenOpen;
+
+    private System.Action onDefeatRestartAction;
+    private System.Action onDefeatMenuAction;
+    private System.Action onDefeatQuitAction;
 
     // Cache interno de dados
     private int cachedP1Points = 0;
@@ -222,6 +246,32 @@ public class ScoreboardHUD : MonoBehaviour
                 txtVictoryTrophy.transform.localScale = new Vector3(pulse, pulse, 1f);
             }
         }
+        else if (isDefeatScreenOpen)
+        {
+            // Atalhos de teclado quando a tela de derrota estiver aberta:
+            // [ESPAÇO] ou [ENTER] = Reiniciar o Torneio do Zero (Nível 1)
+            // [ESC] ou [M] = Voltar ao Menu Principal
+            // [Q] = Sair de Vez do Jogo
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                OnDefeatRestartClicked();
+            }
+            else if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.M))
+            {
+                OnDefeatMenuClicked();
+            }
+            else if (Input.GetKeyDown(KeyCode.Q))
+            {
+                OnDefeatQuitClicked();
+            }
+
+            // Efeito dramático de pulso no ícone de derrota
+            if (txtDefeatIcon != null)
+            {
+                float pulse = 1f + (Mathf.Sin(Time.unscaledTime * 3.5f) * 0.06f);
+                txtDefeatIcon.transform.localScale = new Vector3(pulse, pulse, 1f);
+            }
+        }
     }
 
     /// <summary>
@@ -280,6 +330,9 @@ public class ScoreboardHUD : MonoBehaviour
 
         // 11. Constrói o Overlay de Tela Final de Vitória (Centro Triunfante)
         BuildVictoryScreenOverlay(rootCanvas.transform, baseFont);
+
+        // 12. Constrói o Overlay de Tela de Derrota (Centro Dramático)
+        BuildDefeatScreenOverlay(rootCanvas.transform, baseFont);
     }
 
     private void HideOldScorePlaceholders()
@@ -1798,6 +1851,462 @@ public class ScoreboardHUD : MonoBehaviour
         }
 
         AudioClip clip = AudioClip.Create("VictoryRetroFanfare", totalSamples, 1, sampleRate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+
+    #endregion
+
+    #region Tela de Derrota (Game Over em Qualquer Nível)
+
+    private void BuildDefeatScreenOverlay(Transform parent, TMP_FontAsset font)
+    {
+        Transform existingOverlay = parent.Find("DefeatOverlay");
+        if (existingOverlay != null)
+        {
+            defeatOverlayObj = existingOverlay.gameObject;
+        }
+        else
+        {
+            defeatOverlayObj = new GameObject("DefeatOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(CanvasGroup));
+            defeatOverlayObj.transform.SetParent(parent, false);
+        }
+
+        RectTransform rOverlay = defeatOverlayObj.GetComponent<RectTransform>();
+        rOverlay.anchorMin = Vector2.zero;
+        rOverlay.anchorMax = Vector2.one;
+        rOverlay.pivot = new Vector2(0.5f, 0.5f);
+        rOverlay.sizeDelta = Vector2.zero;
+        rOverlay.anchoredPosition = Vector2.zero;
+
+        Image imgOverlay = defeatOverlayObj.GetComponent<Image>();
+        imgOverlay.color = new Color(0.04f, 0.01f, 0.02f, 0.95f);
+        imgOverlay.raycastTarget = true;
+
+        defeatCanvasGroup = defeatOverlayObj.GetComponent<CanvasGroup>();
+        if (defeatCanvasGroup == null) defeatCanvasGroup = defeatOverlayObj.AddComponent<CanvasGroup>();
+        defeatCanvasGroup.alpha = 0f;
+        defeatCanvasGroup.blocksRaycasts = false;
+
+        // Card Central de Derrota
+        Transform cardTr = defeatOverlayObj.transform.Find("DefeatCard");
+        GameObject cardObj;
+        if (cardTr != null)
+        {
+            cardObj = cardTr.gameObject;
+        }
+        else
+        {
+            cardObj = new GameObject("DefeatCard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            cardObj.transform.SetParent(defeatOverlayObj.transform, false);
+        }
+
+        defeatCardRect = cardObj.GetComponent<RectTransform>();
+        defeatCardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        defeatCardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        defeatCardRect.pivot = new Vector2(0.5f, 0.5f);
+        defeatCardRect.anchoredPosition = Vector2.zero;
+        defeatCardRect.sizeDelta = new Vector2(740f, 540f);
+
+        Image cardImg = cardObj.GetComponent<Image>();
+        cardImg.sprite = LoginManager.CreateRoundedRectSprite(64, 64, 16, cardBgColor, new Color(0.96f, 0.28f, 0.38f, 1f), 3);
+        cardImg.type = Image.Type.Sliced;
+        cardImg.color = Color.white;
+
+        // 1. Tag Superior Pill
+        GameObject tagObj = new GameObject("Tag_Pill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        tagObj.transform.SetParent(cardObj.transform, false);
+        RectTransform tagRect = tagObj.GetComponent<RectTransform>();
+        tagRect.anchorMin = new Vector2(0.5f, 1f);
+        tagRect.anchorMax = new Vector2(0.5f, 1f);
+        tagRect.pivot = new Vector2(0.5f, 1f);
+        tagRect.anchoredPosition = new Vector2(0f, -20f);
+        tagRect.sizeDelta = new Vector2(380f, 30f);
+
+        Image tagImg = tagObj.GetComponent<Image>();
+        tagImg.sprite = pillBadgeSprite;
+        tagImg.type = Image.Type.Sliced;
+
+        GameObject tagTxtObj = new GameObject("Txt_Tag", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        tagTxtObj.transform.SetParent(tagObj.transform, false);
+        RectTransform tagTxtRect = tagTxtObj.GetComponent<RectTransform>();
+        tagTxtRect.anchorMin = Vector2.zero;
+        tagTxtRect.anchorMax = Vector2.one;
+        tagTxtRect.sizeDelta = Vector2.zero;
+
+        txtDefeatTag = tagTxtObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtDefeatTag.font = font;
+        txtDefeatTag.fontSize = 13f;
+        txtDefeatTag.fontStyle = FontStyles.Bold;
+        txtDefeatTag.alignment = TextAlignmentOptions.Center;
+        txtDefeatTag.color = new Color(0.96f, 0.28f, 0.38f, 1f);
+        txtDefeatTag.text = "★ CIRCUITO ENCERRADO • DERROTA ★";
+
+        // 2. Ícone Central Dramático de Derrota
+        GameObject iconObj = new GameObject("Txt_Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        iconObj.transform.SetParent(cardObj.transform, false);
+        RectTransform iconRect = iconObj.GetComponent<RectTransform>();
+        iconRect.anchorMin = new Vector2(0.5f, 1f);
+        iconRect.anchorMax = new Vector2(0.5f, 1f);
+        iconRect.pivot = new Vector2(0.5f, 1f);
+        iconRect.anchoredPosition = new Vector2(0f, -62f);
+        iconRect.sizeDelta = new Vector2(200f, 50f);
+
+        txtDefeatIcon = iconObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtDefeatIcon.font = font;
+        txtDefeatIcon.fontSize = 42f;
+        txtDefeatIcon.alignment = TextAlignmentOptions.Center;
+        txtDefeatIcon.text = "<color=#F54761>★ 💀 ★</color>";
+
+        // 3. Título Principal de Derrota
+        GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        titleObj.transform.SetParent(cardObj.transform, false);
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0.5f, 1f);
+        titleRect.anchorMax = new Vector2(0.5f, 1f);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.anchoredPosition = new Vector2(0f, -118f);
+        titleRect.sizeDelta = new Vector2(700f, 60f);
+
+        txtDefeatTitle = titleObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtDefeatTitle.font = font;
+        txtDefeatTitle.fontSize = 48f;
+        txtDefeatTitle.fontStyle = FontStyles.Bold;
+        txtDefeatTitle.alignment = TextAlignmentOptions.Center;
+        txtDefeatTitle.enableVertexGradient = true;
+        txtDefeatTitle.colorGradient = new VertexGradient(
+            new Color(1f, 0.45f, 0.45f, 1f),
+            new Color(1f, 0.45f, 0.45f, 1f),
+            new Color(0.85f, 0.15f, 0.25f, 1f),
+            new Color(0.85f, 0.15f, 0.25f, 1f)
+        );
+        txtDefeatTitle.text = "FIM DE JOGO!";
+
+        // 4. Subtítulo Explicativo
+        GameObject subObj = new GameObject("Txt_Subtitle", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        subObj.transform.SetParent(cardObj.transform, false);
+        RectTransform subRect = subObj.GetComponent<RectTransform>();
+        subRect.anchorMin = new Vector2(0.5f, 1f);
+        subRect.anchorMax = new Vector2(0.5f, 1f);
+        subRect.pivot = new Vector2(0.5f, 1f);
+        subRect.anchoredPosition = new Vector2(0f, -172f);
+        subRect.sizeDelta = new Vector2(680f, 32f);
+
+        txtDefeatSubtitle = subObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtDefeatSubtitle.font = font;
+        txtDefeatSubtitle.fontSize = 18f;
+        txtDefeatSubtitle.fontStyle = FontStyles.Bold;
+        txtDefeatSubtitle.alignment = TextAlignmentOptions.Center;
+        txtDefeatSubtitle.color = new Color(0.90f, 0.75f, 0.78f, 0.9f);
+        txtDefeatSubtitle.text = "Você foi superado na quadra e sua jornada no torneio chegou ao fim.";
+
+        // Divisória sutil
+        BuildDividerLine(cardObj.transform, new Vector2(0f, -210f), new Vector2(-100f, 1.5f), new Color(0.45f, 0.2f, 0.25f, 0.5f));
+
+        // 5. Painel de Estatísticas da Derrota
+        GameObject statsBoxObj = new GameObject("Box_Stats", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        statsBoxObj.transform.SetParent(cardObj.transform, false);
+        RectTransform statsBoxRect = statsBoxObj.GetComponent<RectTransform>();
+        statsBoxRect.anchorMin = new Vector2(0.5f, 1f);
+        statsBoxRect.anchorMax = new Vector2(0.5f, 1f);
+        statsBoxRect.pivot = new Vector2(0.5f, 1f);
+        statsBoxRect.anchoredPosition = new Vector2(0f, -225f);
+        statsBoxRect.sizeDelta = new Vector2(660f, 135f);
+
+        Image statsBoxImg = statsBoxObj.GetComponent<Image>();
+        statsBoxImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, new Color(0.12f, 0.05f, 0.08f, 0.95f), new Color(0.55f, 0.22f, 0.28f, 0.9f), 2);
+        statsBoxImg.type = Image.Type.Sliced;
+        statsBoxImg.color = Color.white;
+
+        GameObject statsTxtObj = new GameObject("Txt_Stats", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        statsTxtObj.transform.SetParent(statsBoxObj.transform, false);
+        RectTransform statsTxtRect = statsTxtObj.GetComponent<RectTransform>();
+        statsTxtRect.anchorMin = Vector2.zero;
+        statsTxtRect.anchorMax = Vector2.one;
+        statsTxtRect.sizeDelta = new Vector2(-28f, -16f);
+        statsTxtRect.anchoredPosition = Vector2.zero;
+
+        txtDefeatStats = statsTxtObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtDefeatStats.font = font;
+        txtDefeatStats.fontSize = 17f;
+        txtDefeatStats.fontStyle = FontStyles.Normal;
+        txtDefeatStats.alignment = TextAlignmentOptions.Center;
+        txtDefeatStats.lineSpacing = 12f;
+        txtDefeatStats.color = textWhite;
+        txtDefeatStats.text =
+            "<b><color=#F54761>ELIMINADO NO:</color></b>  NÍVEL 1 (INICIANTE)\n" +
+            "<b><color=#94A3B8>PLACAR FINAL:</color></b>  VOCÊ 0  x  2 I.A. RIVAL\n" +
+            "<b><color=#FACC15>DESTINO:</color></b>  O TORNEIO DEVE SER REINICIADO DO NÍVEL 1";
+
+        // 6. Botões de Ação
+        // Botão 1: REINICIAR DO ZERO (Nível 1)
+        GameObject btnRestartObj = new GameObject("Btn_DefeatRestart", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnRestartObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnRestartRect = btnRestartObj.GetComponent<RectTransform>();
+        btnRestartRect.anchorMin = new Vector2(0.5f, 0f);
+        btnRestartRect.anchorMax = new Vector2(0.5f, 0f);
+        btnRestartRect.pivot = new Vector2(0.5f, 0f);
+        btnRestartRect.anchoredPosition = new Vector2(-200f, 75f);
+        btnRestartRect.sizeDelta = new Vector2(230f, 54f);
+
+        Image btnRestartImg = btnRestartObj.GetComponent<Image>();
+        btnRestartImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, new Color(0.96f, 0.65f, 0.15f, 1f), Color.white, 2);
+        btnRestartImg.type = Image.Type.Sliced;
+        btnRestartImg.color = Color.white;
+
+        btnDefeatRestart = btnRestartObj.GetComponent<Button>();
+        btnDefeatRestart.onClick.AddListener(OnDefeatRestartClicked);
+        btnRestartObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtRestartObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtRestartObj.transform.SetParent(btnRestartObj.transform, false);
+        RectTransform txtRestartRect = txtRestartObj.GetComponent<RectTransform>();
+        txtRestartRect.anchorMin = Vector2.zero;
+        txtRestartRect.anchorMax = Vector2.one;
+        txtRestartRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtRestart = txtRestartObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtRestart.font = font;
+        txtRestart.fontSize = 17f;
+        txtRestart.fontStyle = FontStyles.Bold;
+        txtRestart.alignment = TextAlignmentOptions.Center;
+        txtRestart.color = new Color(0.15f, 0.08f, 0.02f, 1f);
+        txtRestart.text = "REINICIAR DO ZERO";
+
+        // Botão 2: MENU PRINCIPAL
+        GameObject btnMenuObj = new GameObject("Btn_DefeatMenu", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnMenuObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnMenuRect = btnMenuObj.GetComponent<RectTransform>();
+        btnMenuRect.anchorMin = new Vector2(0.5f, 0f);
+        btnMenuRect.anchorMax = new Vector2(0.5f, 0f);
+        btnMenuRect.pivot = new Vector2(0.5f, 0f);
+        btnMenuRect.anchoredPosition = new Vector2(50f, 75f);
+        btnMenuRect.sizeDelta = new Vector2(210f, 54f);
+
+        Image btnMenuImg = btnMenuObj.GetComponent<Image>();
+        btnMenuImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, new Color(0.12f, 0.18f, 0.28f, 0.95f), new Color(0.25f, 0.65f, 0.95f, 1f), 2);
+        btnMenuImg.type = Image.Type.Sliced;
+        btnMenuImg.color = Color.white;
+
+        btnDefeatMenu = btnMenuObj.GetComponent<Button>();
+        btnDefeatMenu.onClick.AddListener(OnDefeatMenuClicked);
+        btnMenuObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtMenuObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtMenuObj.transform.SetParent(btnMenuObj.transform, false);
+        RectTransform txtMenuRect = txtMenuObj.GetComponent<RectTransform>();
+        txtMenuRect.anchorMin = Vector2.zero;
+        txtMenuRect.anchorMax = Vector2.one;
+        txtMenuRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtMenu = txtMenuObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtMenu.font = font;
+        txtMenu.fontSize = 18f;
+        txtMenu.fontStyle = FontStyles.Bold;
+        txtMenu.alignment = TextAlignmentOptions.Center;
+        txtMenu.color = Color.white;
+        txtMenu.text = "MENU PRINCIPAL";
+
+        // Botão 3: SAIR DE VEZ DO JOGO
+        GameObject btnQuitObj = new GameObject("Btn_DefeatQuit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnQuitObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnQuitRect = btnQuitObj.GetComponent<RectTransform>();
+        btnQuitRect.anchorMin = new Vector2(0.5f, 0f);
+        btnQuitRect.anchorMax = new Vector2(0.5f, 0f);
+        btnQuitRect.pivot = new Vector2(0.5f, 0f);
+        btnQuitRect.anchoredPosition = new Vector2(235f, 75f);
+        btnQuitRect.sizeDelta = new Vector2(120f, 54f);
+
+        Image btnQuitImg = btnQuitObj.GetComponent<Image>();
+        btnQuitImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 10, new Color(0.18f, 0.06f, 0.08f, 0.95f), new Color(0.85f, 0.25f, 0.35f, 0.9f), 1);
+        btnQuitImg.type = Image.Type.Sliced;
+        btnQuitImg.color = Color.white;
+
+        btnDefeatQuit = btnQuitObj.GetComponent<Button>();
+        btnDefeatQuit.onClick.AddListener(OnDefeatQuitClicked);
+        btnQuitObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtQuitObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtQuitObj.transform.SetParent(btnQuitObj.transform, false);
+        RectTransform txtQuitRect = txtQuitObj.GetComponent<RectTransform>();
+        txtQuitRect.anchorMin = Vector2.zero;
+        txtQuitRect.anchorMax = Vector2.one;
+        txtQuitRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtQuit = txtQuitObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtQuit.font = font;
+        txtQuit.fontSize = 16f;
+        txtQuit.fontStyle = FontStyles.Bold;
+        txtQuit.alignment = TextAlignmentOptions.Center;
+        txtQuit.color = new Color(1f, 0.8f, 0.8f, 0.95f);
+        txtQuit.text = "SAIR";
+
+        // 7. Rodapé com Instruções de Teclado
+        GameObject footerObj = new GameObject("Txt_FooterHint", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        footerObj.transform.SetParent(cardObj.transform, false);
+        RectTransform footerRect = footerObj.GetComponent<RectTransform>();
+        footerRect.anchorMin = new Vector2(0.5f, 0f);
+        footerRect.anchorMax = new Vector2(0.5f, 0f);
+        footerRect.pivot = new Vector2(0.5f, 0f);
+        footerRect.anchoredPosition = new Vector2(0f, 22f);
+        footerRect.sizeDelta = new Vector2(660f, 30f);
+
+        txtDefeatFooter = footerObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtDefeatFooter.font = font;
+        txtDefeatFooter.fontSize = 14f;
+        txtDefeatFooter.fontStyle = FontStyles.Normal;
+        txtDefeatFooter.alignment = TextAlignmentOptions.Center;
+        txtDefeatFooter.color = new Color(0.7f, 0.7f, 0.75f, 0.85f);
+        txtDefeatFooter.text = "<b><color=#FACC15>[ESPAÇO]</color></b> Reiniciar do Zero   <color=#475569>•</color>   <b><color=#38BDF8>[ESC]</color></b> Menu Principal   <color=#475569>•</color>   <b><color=#F54761>[Q]</color></b> Sair";
+
+        defeatOverlayObj.SetActive(false);
+    }
+
+    /// <summary>
+    /// Exibe a tela de derrota (Game Over) ao perder uma partida em qualquer nível do circuito
+    /// </summary>
+    public void ShowDefeatScreen(int level, string grad, int p1Sets, int p2Sets, System.Action onRestart, System.Action onMenu, System.Action onQuit)
+    {
+        onDefeatRestartAction = onRestart;
+        onDefeatMenuAction = onMenu;
+        onDefeatQuitAction = onQuit;
+
+        if (currentDefeatRoutine != null)
+        {
+            StopCoroutine(currentDefeatRoutine);
+        }
+
+        currentDefeatRoutine = StartCoroutine(DefeatScreenRoutine(level, grad, p1Sets, p2Sets));
+    }
+
+    /// <summary>
+    /// Oculta a tela de derrota
+    /// </summary>
+    public void HideDefeatScreen()
+    {
+        isDefeatScreenOpen = false;
+        if (defeatOverlayObj != null)
+        {
+            defeatOverlayObj.SetActive(false);
+            if (defeatCanvasGroup != null)
+            {
+                defeatCanvasGroup.alpha = 0f;
+                defeatCanvasGroup.blocksRaycasts = false;
+            }
+        }
+    }
+
+    private IEnumerator DefeatScreenRoutine(int level, string grad, int p1Sets, int p2Sets)
+    {
+        isDefeatScreenOpen = true;
+
+        if (defeatOverlayObj == null)
+        {
+            TMP_FontAsset baseFont = customFont ?? TMP_Settings.defaultFontAsset;
+            BuildDefeatScreenOverlay(rootCanvas.transform, baseFont);
+        }
+
+        if (defeatOverlayObj == null)
+        {
+            isDefeatScreenOpen = false;
+            yield break;
+        }
+
+        // Traz para o topo absoluto do Canvas
+        defeatOverlayObj.transform.SetAsLastSibling();
+        defeatOverlayObj.SetActive(true);
+
+        if (txtDefeatStats != null)
+        {
+            txtDefeatStats.text =
+                $"<b><color=#F54761>ELIMINADO NO:</color></b>  NÍVEL {level} ({grad.ToUpper()})\n" +
+                $"<b><color=#94A3B8>PLACAR FINAL:</color></b>  VOCÊ <color=#85F226>{p1Sets}</color>  x  <color=#F54761>{p2Sets}</color> I.A. RIVAL\n" +
+                $"<b><color=#FACC15>DESTINO:</color></b>  O TORNEIO DEVE SER REINICIADO DO NÍVEL 1";
+        }
+
+        // Toca efeito sonoro dramático de derrota retrô
+        AudioClip soundToPlay = defeatSound != null ? defeatSound : GenerateRetroDefeatJingle();
+        if (audioSource != null && soundToPlay != null)
+        {
+            audioSource.PlayOneShot(soundToPlay);
+        }
+
+        if (defeatCanvasGroup != null)
+        {
+            defeatCanvasGroup.blocksRaycasts = true;
+        }
+
+        // Animação punch-in elástica retrô
+        float elapsed = 0f;
+        float duration = 0.38f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            float scale = Mathf.Lerp(0.35f, 1.08f, Mathf.Sin(t * Mathf.PI * 0.5f));
+            if (t >= 0.75f)
+            {
+                scale = Mathf.Lerp(1.08f, 1.0f, (t - 0.75f) / 0.25f);
+            }
+
+            if (defeatCanvasGroup != null) defeatCanvasGroup.alpha = Mathf.Clamp01(t * 1.5f);
+            if (defeatCardRect != null) defeatCardRect.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+
+        if (defeatCardRect != null) defeatCardRect.localScale = Vector3.one;
+        if (defeatCanvasGroup != null) defeatCanvasGroup.alpha = 1f;
+
+        currentDefeatRoutine = null;
+    }
+
+    private void OnDefeatRestartClicked()
+    {
+        if (!isDefeatScreenOpen) return;
+        HideDefeatScreen();
+        onDefeatRestartAction?.Invoke();
+    }
+
+    private void OnDefeatMenuClicked()
+    {
+        if (!isDefeatScreenOpen) return;
+        HideDefeatScreen();
+        onDefeatMenuAction?.Invoke();
+    }
+
+    private void OnDefeatQuitClicked()
+    {
+        if (!isDefeatScreenOpen) return;
+        HideDefeatScreen();
+        onDefeatQuitAction?.Invoke();
+    }
+
+    private AudioClip GenerateRetroDefeatJingle()
+    {
+        int sampleRate = 44100;
+        float duration = 1.8f;
+        int totalSamples = Mathf.FloorToInt(sampleRate * duration);
+        float[] samples = new float[totalSamples];
+
+        // Sequência melancólica de notas descendentes em estilo chiptune retrô: E4, C4, A3, F#3, D3
+        float[] freqs = new float[] { 329.63f, 261.63f, 220.00f, 185.00f, 146.83f };
+        float noteDuration = duration / freqs.Length;
+
+        for (int i = 0; i < totalSamples; i++)
+        {
+            float t = (float)i / sampleRate;
+            int noteIndex = Mathf.Clamp(Mathf.FloorToInt(t / noteDuration), 0, freqs.Length - 1);
+            float freq = freqs[noteIndex];
+            float noteTime = t - (noteIndex * noteDuration);
+
+            float envelope = Mathf.Clamp01(1f - (noteTime / noteDuration) * 0.45f);
+            // Mistura de onda senoidal suave com onda quadrada retrô leve
+            float wave = Mathf.Sin(2f * Mathf.PI * freq * t) * 0.55f + Mathf.Sign(Mathf.Sin(2f * Mathf.PI * freq * t)) * 0.12f;
+            samples[i] = wave * envelope * 0.45f;
+        }
+
+        AudioClip clip = AudioClip.Create("DefeatRetroJingle", totalSamples, 1, sampleRate, false);
         clip.SetData(samples, 0);
         return clip;
     }
