@@ -47,6 +47,7 @@ public class Ball : MonoBehaviour
     private bool isPlayer1Serving = true;
     private bool isProcessingPoint = false;
     private bool canCheckPoint = false; // Trava para evitar falso ponto ao sacar
+    private float serveLockoutUntil = 0f;
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
@@ -103,10 +104,23 @@ public class Ball : MonoBehaviour
         {
             FollowServerPosition();
 
-            if (isPlayer1Serving && Input.GetKeyDown(KeyCode.Space))
+            // Durante a transição de nível, bloqueia o saque e impede que a bola seja solta
+            if (GameManager.Instance != null && GameManager.Instance.IsLevelTransitioning)
+            {
+                return;
+            }
+
+            // Permite sacar com Espaço apenas quando não estiver bloqueado por transição e fora da janela de lockout
+            if (isPlayer1Serving && Time.time >= serveLockoutUntil && Input.GetKeyDown(KeyCode.Space))
             {
                 ExecuteServe();
             }
+            return;
+        }
+
+        // Se estiver em transição de nível, congela a bola
+        if (GameManager.Instance != null && GameManager.Instance.IsLevelTransitioning)
+        {
             return;
         }
 
@@ -147,7 +161,9 @@ public class Ball : MonoBehaviour
         CancelInvoke(nameof(EnablePointChecking));
 
         if (GameManager.Instance != null && GameManager.Instance.IsGameFinished) return;
+        if (GameManager.Instance != null && GameManager.Instance.IsLevelTransitioning) return;
 
+        serveLockoutUntil = Time.time + 0.35f; // Janela de proteção para não disparar no mesmo clique que fechou o HUD
         isBallInPlay = false;
         isServing = true;
         canCheckPoint = false; // Desativa a checagem de ponto durante a preparação do saque
@@ -343,6 +359,15 @@ public class Ball : MonoBehaviour
                 GameManager.Instance.AddPoint(1);
             }
 
+            // Se o ponto gerou fim de jogo ou transição de nível, não reinicia saque imediatamente
+            if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning))
+            {
+                isServing = false;
+                isBallInPlay = false;
+                if (rb != null) rb.linearVelocity = Vector2.zero;
+                return;
+            }
+
             PrepareServe(true);
         }
         else
@@ -352,6 +377,15 @@ public class Ball : MonoBehaviour
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.AddPoint(2);
+            }
+
+            // Se o ponto gerou fim de jogo ou transição de nível, não reinicia saque imediatamente
+            if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning))
+            {
+                isServing = false;
+                isBallInPlay = false;
+                if (rb != null) rb.linearVelocity = Vector2.zero;
+                return;
             }
 
             PrepareServe(false);

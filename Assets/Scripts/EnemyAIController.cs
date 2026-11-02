@@ -172,7 +172,7 @@ public class EnemyAIController : MonoBehaviour
 
     void Update()
     {
-        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished)
+        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning))
         {
             StopMovement();
             return;
@@ -261,7 +261,7 @@ public class EnemyAIController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished)
+        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning))
         {
             StopMovement();
             return;

@@ -33,9 +33,11 @@ public class GameManager : MonoBehaviour
     public bool isGameFinished = false;
     public bool isGameWon = false;
     public bool isGameDefeated = false;
+    public bool isLevelTransitioning = false;
     public bool IsGameFinished => isGameFinished;
     public bool IsGameWon => isGameWon;
     public bool IsGameDefeated => isGameDefeated;
+    public bool IsLevelTransitioning => isLevelTransitioning || (ScoreboardHUD.Instance != null && ScoreboardHUD.Instance.IsTransitioningLevel);
 
     [Header("Interface de Usuário (Compatibilidade TMP)")]
     public TextMeshProUGUI txtPlayer1Points;
@@ -236,6 +238,7 @@ public class GameManager : MonoBehaviour
 
             if (currentLevel < 5)
             {
+                isLevelTransitioning = true;
                 if (ScoreboardHUD.Instance != null)
                 {
                     ScoreboardHUD.Instance.ShowAnnouncement("🏆 VOCÊ VENCEU A PARTIDA!", ScoreboardHUD.Instance.goldColor, 1.8f);
@@ -257,6 +260,7 @@ public class GameManager : MonoBehaviour
 
     private void StartNextLevelTransition()
     {
+        isLevelTransitioning = true;
         int oldLevel = currentLevel;
         int nextLevel = currentLevel + 1;
         string oldGrad = (levelGraduations != null && oldLevel <= levelGraduations.Length) ? levelGraduations[oldLevel - 1] : $"Nível {oldLevel}";
@@ -474,9 +478,10 @@ public class GameManager : MonoBehaviour
     [ContextMenu("Testar Transição de Próximo Nível (L)")]
     public void DebugAdvanceLevel()
     {
-        if (ScoreboardHUD.Instance != null && ScoreboardHUD.Instance.IsTransitioningLevel)
+        if (IsLevelTransitioning || IsGameFinished)
             return;
 
+        isLevelTransitioning = true;
         int oldLevel = currentLevel;
         int nextLevel = currentLevel < 5 ? currentLevel + 1 : 1;
         string oldGrad = (levelGraduations != null && oldLevel <= levelGraduations.Length) ? levelGraduations[oldLevel - 1] : $"Nível {oldLevel}";
@@ -502,9 +507,10 @@ public class GameManager : MonoBehaviour
     [ContextMenu("Testar Transição de Nível Anterior (K)")]
     public void DebugRegressLevel()
     {
-        if (ScoreboardHUD.Instance != null && ScoreboardHUD.Instance.IsTransitioningLevel)
+        if (IsLevelTransitioning || IsGameFinished)
             return;
 
+        isLevelTransitioning = true;
         int oldLevel = currentLevel;
         int prevLevel = currentLevel > 1 ? currentLevel - 1 : 5;
         string oldGrad = (levelGraduations != null && oldLevel <= levelGraduations.Length) ? levelGraduations[oldLevel - 1] : $"Nível {oldLevel}";
@@ -529,6 +535,7 @@ public class GameManager : MonoBehaviour
 
     private void ResetMatchAndServe()
     {
+        isLevelTransitioning = false;
         ResetMatch();
         if (ballScript != null)
         {
