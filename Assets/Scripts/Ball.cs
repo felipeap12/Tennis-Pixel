@@ -116,19 +116,19 @@ public class Ball : MonoBehaviour
 
     void Update()
     {
-        if (GameManager.Instance != null && GameManager.Instance.IsGameFinished) return;
+        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsGamePaused)) return;
 
         if (isServing)
         {
             FollowServerPosition();
 
-            // Durante a transição de nível, bloqueia o saque e impede que a bola seja solta
-            if (GameManager.Instance != null && GameManager.Instance.IsLevelTransitioning)
+            // Durante a transição de nível ou pausa, bloqueia o saque e impede que a bola seja solta
+            if (GameManager.Instance != null && (GameManager.Instance.IsLevelTransitioning || GameManager.Instance.IsGamePaused))
             {
                 return;
             }
 
-            // Permite sacar com Espaço apenas quando não estiver bloqueado por transição e fora da janela de lockout
+            // Permite sacar com Espaço apenas quando não estiver bloqueado por transição/pause e fora da janela de lockout
             if (isPlayer1Serving && Time.time >= serveLockoutUntil && Input.GetKeyDown(KeyCode.Space))
             {
                 ExecuteServe();
@@ -136,8 +136,8 @@ public class Ball : MonoBehaviour
             return;
         }
 
-        // Se estiver em transição de nível, congela a bola
-        if (GameManager.Instance != null && GameManager.Instance.IsLevelTransitioning)
+        // Se estiver em transição de nível ou pause, congela a bola
+        if (GameManager.Instance != null && (GameManager.Instance.IsLevelTransitioning || GameManager.Instance.IsGamePaused))
         {
             return;
         }

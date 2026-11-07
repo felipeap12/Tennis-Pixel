@@ -49,6 +49,10 @@ public class ScoreboardHUD : MonoBehaviour
     [Header("Tela de Derrota (Game Over em Qualquer Nível)")]
     public AudioClip defeatSound;
 
+    [Header("Menu de Pause (ESC)")]
+    public AudioClip pauseSound;
+    public AudioClip unpauseSound;
+
     // Componentes Visuais
     private Canvas rootCanvas;
     private RectTransform scoreboardCardRect;
@@ -146,6 +150,24 @@ public class ScoreboardHUD : MonoBehaviour
     private System.Action onDefeatRestartAction;
     private System.Action onDefeatMenuAction;
     private System.Action onDefeatQuitAction;
+
+    // Overlay de Tela de Pause (ESC)
+    private GameObject pauseOverlayObj;
+    private CanvasGroup pauseCanvasGroup;
+    private RectTransform pauseCardRect;
+    private TextMeshProUGUI txtPauseTag;
+    private TextMeshProUGUI txtPauseIcon;
+    private TextMeshProUGUI txtPauseTitle;
+    private TextMeshProUGUI txtPauseSubtitle;
+    private TextMeshProUGUI txtPauseStats;
+    private TextMeshProUGUI txtPauseFooter;
+    private Button btnPauseResume;
+    private Button btnPauseRestart;
+    private Button btnPauseMenu;
+    private Button btnPauseQuit;
+    private Coroutine currentPauseRoutine;
+    private bool isPauseMenuOpen = false;
+    public bool IsPauseMenuOpen => isPauseMenuOpen;
 
     // Cache interno de dados
     private int cachedP1Points = 0;
@@ -272,6 +294,48 @@ public class ScoreboardHUD : MonoBehaviour
                 txtDefeatIcon.transform.localScale = new Vector3(pulse, pulse, 1f);
             }
         }
+        else if (isPauseMenuOpen)
+        {
+            // Atalhos de teclado quando o menu de pause estiver aberto:
+            // [ESC] ou [ESPAÇO] ou [ENTER] = Continuar / Retomar a Partida
+            // [R] = Reiniciar Partida
+            // [M] = Voltar ao Menu Principal
+            // [Q] = Sair de Vez do Jogo
+            if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                OnPauseResumeClicked();
+            }
+            else if (Input.GetKeyDown(KeyCode.R))
+            {
+                OnPauseRestartClicked();
+            }
+            else if (Input.GetKeyDown(KeyCode.M))
+            {
+                OnPauseMenuClicked();
+            }
+            else if (Input.GetKeyDown(KeyCode.Q))
+            {
+                OnPauseQuitClicked();
+            }
+
+            // Efeito sutil de pulso no ícone de pause
+            if (txtPauseIcon != null)
+            {
+                float pulse = 1f + (Mathf.Sin(Time.unscaledTime * 3.5f) * 0.06f);
+                txtPauseIcon.transform.localScale = new Vector3(pulse, pulse, 1f);
+            }
+        }
+        else
+        {
+            // Partida em andamento: tecla [ESC] abre o menu de pause
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (CanOpenPauseMenu())
+                {
+                    ShowPauseMenu();
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -333,6 +397,9 @@ public class ScoreboardHUD : MonoBehaviour
 
         // 12. Constrói o Overlay de Tela de Derrota (Centro Dramático)
         BuildDefeatScreenOverlay(rootCanvas.transform, baseFont);
+
+        // 13. Constrói o Overlay do Menu de Pause (Centro Retrô Arcade)
+        BuildPauseMenuOverlay(rootCanvas.transform, baseFont);
     }
 
     private void HideOldScorePlaceholders()
@@ -2331,6 +2398,618 @@ public class ScoreboardHUD : MonoBehaviour
         }
 
         AudioClip clip = AudioClip.Create("DefeatRetroJingle", totalSamples, 1, sampleRate, false);
+        clip.SetData(samples, 0);
+        return clip;
+    }
+
+    #endregion
+
+    #region Menu de Pause (ESC)
+
+    private void BuildPauseMenuOverlay(Transform parent, TMP_FontAsset font)
+    {
+        Transform existingOverlay = parent.Find("PauseOverlay");
+        if (existingOverlay != null)
+        {
+            pauseOverlayObj = existingOverlay.gameObject;
+        }
+        else
+        {
+            pauseOverlayObj = new GameObject("PauseOverlay", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(CanvasGroup));
+            pauseOverlayObj.transform.SetParent(parent, false);
+        }
+
+        RectTransform rOverlay = pauseOverlayObj.GetComponent<RectTransform>();
+        rOverlay.anchorMin = Vector2.zero;
+        rOverlay.anchorMax = Vector2.one;
+        rOverlay.pivot = new Vector2(0.5f, 0.5f);
+        rOverlay.sizeDelta = Vector2.zero;
+        rOverlay.anchoredPosition = Vector2.zero;
+
+        Image imgOverlay = pauseOverlayObj.GetComponent<Image>();
+        imgOverlay.color = new Color(0.03f, 0.05f, 0.09f, 0.88f); // Fundo escuro glassmorphism retrô
+        imgOverlay.raycastTarget = true;
+
+        pauseCanvasGroup = pauseOverlayObj.GetComponent<CanvasGroup>();
+        if (pauseCanvasGroup == null) pauseCanvasGroup = pauseOverlayObj.AddComponent<CanvasGroup>();
+        pauseCanvasGroup.alpha = 0f;
+        pauseCanvasGroup.blocksRaycasts = false;
+
+        // Card Central de Pause
+        Transform cardTr = pauseOverlayObj.transform.Find("PauseCard");
+        GameObject cardObj;
+        if (cardTr != null)
+        {
+            cardObj = cardTr.gameObject;
+        }
+        else
+        {
+            cardObj = new GameObject("PauseCard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            cardObj.transform.SetParent(pauseOverlayObj.transform, false);
+        }
+
+        pauseCardRect = cardObj.GetComponent<RectTransform>();
+        pauseCardRect.anchorMin = new Vector2(0.5f, 0.5f);
+        pauseCardRect.anchorMax = new Vector2(0.5f, 0.5f);
+        pauseCardRect.pivot = new Vector2(0.5f, 0.5f);
+        pauseCardRect.anchoredPosition = Vector2.zero;
+        pauseCardRect.sizeDelta = new Vector2(680f, 490f);
+
+        Image cardImg = cardObj.GetComponent<Image>();
+        // Borda ciano/elétrica neon (#38BDF8) idêntica à sofisticação visual dos outros menus
+        cardImg.sprite = LoginManager.CreateRoundedRectSprite(64, 64, 16, cardBgColor, new Color(0.22f, 0.74f, 0.97f, 1f), 3);
+        cardImg.type = Image.Type.Sliced;
+        cardImg.color = Color.white;
+
+        // 1. Tag Superior Pill
+        GameObject tagObj = new GameObject("Tag_Pill", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        tagObj.transform.SetParent(cardObj.transform, false);
+        RectTransform tagRect = tagObj.GetComponent<RectTransform>();
+        tagRect.anchorMin = new Vector2(0.5f, 1f);
+        tagRect.anchorMax = new Vector2(0.5f, 1f);
+        tagRect.pivot = new Vector2(0.5f, 1f);
+        tagRect.anchoredPosition = new Vector2(0f, -18f);
+        tagRect.sizeDelta = new Vector2(340f, 28f);
+
+        Image tagImg = tagObj.GetComponent<Image>();
+        tagImg.sprite = pillBadgeSprite;
+        tagImg.type = Image.Type.Sliced;
+
+        GameObject tagTxtObj = new GameObject("Txt_Tag", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        tagTxtObj.transform.SetParent(tagObj.transform, false);
+        RectTransform tagTxtRect = tagTxtObj.GetComponent<RectTransform>();
+        tagTxtRect.anchorMin = Vector2.zero;
+        tagTxtRect.anchorMax = Vector2.one;
+        tagTxtRect.sizeDelta = Vector2.zero;
+
+        txtPauseTag = tagTxtObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtPauseTag.font = font;
+        txtPauseTag.fontSize = 12.5f;
+        txtPauseTag.fontStyle = FontStyles.Bold;
+        txtPauseTag.alignment = TextAlignmentOptions.Center;
+        txtPauseTag.color = new Color(0.22f, 0.74f, 0.97f, 1f);
+        txtPauseTag.text = "★ PAUSA • JOGO INTERROMPIDO ★";
+
+        // 2. Ícone Central de Pause
+        GameObject iconObj = new GameObject("Txt_Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        iconObj.transform.SetParent(cardObj.transform, false);
+        RectTransform iconRect = iconObj.GetComponent<RectTransform>();
+        iconRect.anchorMin = new Vector2(0.5f, 1f);
+        iconRect.anchorMax = new Vector2(0.5f, 1f);
+        iconRect.pivot = new Vector2(0.5f, 1f);
+        iconRect.anchoredPosition = new Vector2(0f, -50f);
+        iconRect.sizeDelta = new Vector2(200f, 42f);
+
+        txtPauseIcon = iconObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtPauseIcon.font = font;
+        txtPauseIcon.fontSize = 36f;
+        txtPauseIcon.alignment = TextAlignmentOptions.Center;
+        txtPauseIcon.text = "<color=#38BDF8>★ ⏸ ★</color>";
+
+        // 3. Título Principal de Pause
+        GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        titleObj.transform.SetParent(cardObj.transform, false);
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0.5f, 1f);
+        titleRect.anchorMax = new Vector2(0.5f, 1f);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.anchoredPosition = new Vector2(0f, -94f);
+        titleRect.sizeDelta = new Vector2(640f, 52f);
+
+        txtPauseTitle = titleObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtPauseTitle.font = font;
+        txtPauseTitle.fontSize = 46f;
+        txtPauseTitle.fontStyle = FontStyles.Bold;
+        txtPauseTitle.alignment = TextAlignmentOptions.Center;
+        txtPauseTitle.enableVertexGradient = true;
+        txtPauseTitle.colorGradient = new VertexGradient(
+            new Color(1f, 0.98f, 0.35f, 1f),
+            new Color(1f, 0.98f, 0.35f, 1f),
+            new Color(0.55f, 0.92f, 0.12f, 1f),
+            new Color(0.55f, 0.92f, 0.12f, 1f)
+        );
+        txtPauseTitle.text = "JOGO PAUSADO";
+
+        // 4. Subtítulo Explicativo
+        GameObject subObj = new GameObject("Txt_Subtitle", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        subObj.transform.SetParent(cardObj.transform, false);
+        RectTransform subRect = subObj.GetComponent<RectTransform>();
+        subRect.anchorMin = new Vector2(0.5f, 1f);
+        subRect.anchorMax = new Vector2(0.5f, 1f);
+        subRect.pivot = new Vector2(0.5f, 1f);
+        subRect.anchoredPosition = new Vector2(0f, -146f);
+        subRect.sizeDelta = new Vector2(620f, 26f);
+
+        txtPauseSubtitle = subObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtPauseSubtitle.font = font;
+        txtPauseSubtitle.fontSize = 16f;
+        txtPauseSubtitle.fontStyle = FontStyles.Bold;
+        txtPauseSubtitle.alignment = TextAlignmentOptions.Center;
+        txtPauseSubtitle.color = new Color(0.75f, 0.85f, 0.95f, 0.9f);
+        txtPauseSubtitle.text = "A partida está temporariamente congelada";
+
+        // Divisória sutil
+        BuildDividerLine(cardObj.transform, new Vector2(0f, -174f), new Vector2(-100f, 1.5f), new Color(0.2f, 0.3f, 0.45f, 0.5f));
+
+        // 5. Painel de Status da Partida Atual
+        GameObject statsBoxObj = new GameObject("Box_Stats", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        statsBoxObj.transform.SetParent(cardObj.transform, false);
+        RectTransform statsBoxRect = statsBoxObj.GetComponent<RectTransform>();
+        statsBoxRect.anchorMin = new Vector2(0.5f, 1f);
+        statsBoxRect.anchorMax = new Vector2(0.5f, 1f);
+        statsBoxRect.pivot = new Vector2(0.5f, 1f);
+        statsBoxRect.anchoredPosition = new Vector2(0f, -188f);
+        statsBoxRect.sizeDelta = new Vector2(600f, 86f);
+
+        Image statsBoxImg = statsBoxObj.GetComponent<Image>();
+        statsBoxImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, new Color(0.06f, 0.10f, 0.16f, 0.95f), new Color(0.25f, 0.38f, 0.52f, 0.9f), 2);
+        statsBoxImg.type = Image.Type.Sliced;
+        statsBoxImg.color = Color.white;
+
+        GameObject statsTxtObj = new GameObject("Txt_Stats", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        statsTxtObj.transform.SetParent(statsBoxObj.transform, false);
+        RectTransform statsTxtRect = statsTxtObj.GetComponent<RectTransform>();
+        statsTxtRect.anchorMin = Vector2.zero;
+        statsTxtRect.anchorMax = Vector2.one;
+        statsTxtRect.sizeDelta = new Vector2(-24f, -12f);
+        statsTxtRect.anchoredPosition = Vector2.zero;
+
+        txtPauseStats = statsTxtObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtPauseStats.font = font;
+        txtPauseStats.fontSize = 16f;
+        txtPauseStats.fontStyle = FontStyles.Normal;
+        txtPauseStats.alignment = TextAlignmentOptions.Center;
+        txtPauseStats.lineSpacing = 10f;
+        txtPauseStats.color = textWhite;
+        txtPauseStats.text = "";
+
+        // 6. Botão 1: CONTINUAR (Destaque Principal em Verde Neon)
+        GameObject btnResumeObj = new GameObject("Btn_Resume", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnResumeObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnResumeRect = btnResumeObj.GetComponent<RectTransform>();
+        btnResumeRect.anchorMin = new Vector2(0.5f, 1f);
+        btnResumeRect.anchorMax = new Vector2(0.5f, 1f);
+        btnResumeRect.pivot = new Vector2(0.5f, 1f);
+        btnResumeRect.anchoredPosition = new Vector2(0f, -290f);
+        btnResumeRect.sizeDelta = new Vector2(360f, 48f);
+
+        Image btnResumeImg = btnResumeObj.GetComponent<Image>();
+        btnResumeImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 12, p1Color, Color.white, 2);
+        btnResumeImg.type = Image.Type.Sliced;
+        btnResumeImg.color = Color.white;
+
+        btnPauseResume = btnResumeObj.GetComponent<Button>();
+        btnPauseResume.onClick.AddListener(OnPauseResumeClicked);
+        btnResumeObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtResumeObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtResumeObj.transform.SetParent(btnResumeObj.transform, false);
+        RectTransform txtResumeRect = txtResumeObj.GetComponent<RectTransform>();
+        txtResumeRect.anchorMin = Vector2.zero;
+        txtResumeRect.anchorMax = Vector2.one;
+        txtResumeRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtResume = txtResumeObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtResume.font = font;
+        txtResume.fontSize = 20f;
+        txtResume.fontStyle = FontStyles.Bold;
+        txtResume.alignment = TextAlignmentOptions.Center;
+        txtResume.color = new Color(0.04f, 0.14f, 0.04f, 1f);
+        txtResume.text = "CONTINUAR";
+
+        // 7. Linha com 3 Botões Secundários: REINICIAR | MENU PRINCIPAL | SAIR
+        // Botão 2: REINICIAR
+        GameObject btnRestartObj = new GameObject("Btn_Restart", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnRestartObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnRestartRect = btnRestartObj.GetComponent<RectTransform>();
+        btnRestartRect.anchorMin = new Vector2(0.5f, 1f);
+        btnRestartRect.anchorMax = new Vector2(0.5f, 1f);
+        btnRestartRect.pivot = new Vector2(0.5f, 1f);
+        btnRestartRect.anchoredPosition = new Vector2(-190f, -350f);
+        btnRestartRect.sizeDelta = new Vector2(175f, 42f);
+
+        Image btnRestartImg = btnRestartObj.GetComponent<Image>();
+        btnRestartImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 10, new Color(0.12f, 0.18f, 0.28f, 0.95f), new Color(0.98f, 0.75f, 0.20f, 1f), 2);
+        btnRestartImg.type = Image.Type.Sliced;
+        btnRestartImg.color = Color.white;
+
+        btnPauseRestart = btnRestartObj.GetComponent<Button>();
+        btnPauseRestart.onClick.AddListener(OnPauseRestartClicked);
+        btnRestartObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtRestartObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtRestartObj.transform.SetParent(btnRestartObj.transform, false);
+        RectTransform txtRestartRect = txtRestartObj.GetComponent<RectTransform>();
+        txtRestartRect.anchorMin = Vector2.zero;
+        txtRestartRect.anchorMax = Vector2.one;
+        txtRestartRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtRestart = txtRestartObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtRestart.font = font;
+        txtRestart.fontSize = 15f;
+        txtRestart.fontStyle = FontStyles.Bold;
+        txtRestart.alignment = TextAlignmentOptions.Center;
+        txtRestart.color = goldColor;
+        txtRestart.text = "REINICIAR";
+
+        // Botão 3: MENU PRINCIPAL
+        GameObject btnMenuObj = new GameObject("Btn_Menu", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnMenuObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnMenuRect = btnMenuObj.GetComponent<RectTransform>();
+        btnMenuRect.anchorMin = new Vector2(0.5f, 1f);
+        btnMenuRect.anchorMax = new Vector2(0.5f, 1f);
+        btnMenuRect.pivot = new Vector2(0.5f, 1f);
+        btnMenuRect.anchoredPosition = new Vector2(5f, -350f);
+        btnMenuRect.sizeDelta = new Vector2(185f, 42f);
+
+        Image btnMenuImg = btnMenuObj.GetComponent<Image>();
+        btnMenuImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 10, new Color(0.12f, 0.18f, 0.28f, 0.95f), new Color(0.25f, 0.65f, 0.95f, 1f), 2);
+        btnMenuImg.type = Image.Type.Sliced;
+        btnMenuImg.color = Color.white;
+
+        btnPauseMenu = btnMenuObj.GetComponent<Button>();
+        btnPauseMenu.onClick.AddListener(OnPauseMenuClicked);
+        btnMenuObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtMenuObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtMenuObj.transform.SetParent(btnMenuObj.transform, false);
+        RectTransform txtMenuRect = txtMenuObj.GetComponent<RectTransform>();
+        txtMenuRect.anchorMin = Vector2.zero;
+        txtMenuRect.anchorMax = Vector2.one;
+        txtMenuRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtMenu = txtMenuObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtMenu.font = font;
+        txtMenu.fontSize = 15f;
+        txtMenu.fontStyle = FontStyles.Bold;
+        txtMenu.alignment = TextAlignmentOptions.Center;
+        txtMenu.color = Color.white;
+        txtMenu.text = "MENU PRINCIPAL";
+
+        // Botão 4: SAIR
+        GameObject btnQuitObj = new GameObject("Btn_Quit", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        btnQuitObj.transform.SetParent(cardObj.transform, false);
+        RectTransform btnQuitRect = btnQuitObj.GetComponent<RectTransform>();
+        btnQuitRect.anchorMin = new Vector2(0.5f, 1f);
+        btnQuitRect.anchorMax = new Vector2(0.5f, 1f);
+        btnQuitRect.pivot = new Vector2(0.5f, 1f);
+        btnQuitRect.anchoredPosition = new Vector2(180f, -350f);
+        btnQuitRect.sizeDelta = new Vector2(130f, 42f);
+
+        Image btnQuitImg = btnQuitObj.GetComponent<Image>();
+        btnQuitImg.sprite = LoginManager.CreateRoundedRectSprite(48, 48, 10, new Color(0.08f, 0.12f, 0.18f, 0.95f), new Color(0.35f, 0.45f, 0.55f, 0.8f), 1);
+        btnQuitImg.type = Image.Type.Sliced;
+        btnQuitImg.color = Color.white;
+
+        btnPauseQuit = btnQuitObj.GetComponent<Button>();
+        btnPauseQuit.onClick.AddListener(OnPauseQuitClicked);
+        btnQuitObj.AddComponent<MenuButtonHover>();
+
+        GameObject txtQuitObj = new GameObject("Text (TMP)", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        txtQuitObj.transform.SetParent(btnQuitObj.transform, false);
+        RectTransform txtQuitRect = txtQuitObj.GetComponent<RectTransform>();
+        txtQuitRect.anchorMin = Vector2.zero;
+        txtQuitRect.anchorMax = Vector2.one;
+        txtQuitRect.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txtQuit = txtQuitObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtQuit.font = font;
+        txtQuit.fontSize = 15f;
+        txtQuit.fontStyle = FontStyles.Bold;
+        txtQuit.alignment = TextAlignmentOptions.Center;
+        txtQuit.color = new Color(0.75f, 0.85f, 0.95f, 0.85f);
+        txtQuit.text = "SAIR";
+
+        // 8. Rodapé com Instruções de Teclado
+        GameObject footerObj = new GameObject("Txt_FooterHint", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        footerObj.transform.SetParent(cardObj.transform, false);
+        RectTransform footerRect = footerObj.GetComponent<RectTransform>();
+        footerRect.anchorMin = new Vector2(0.5f, 0f);
+        footerRect.anchorMax = new Vector2(0.5f, 0f);
+        footerRect.pivot = new Vector2(0.5f, 0f);
+        footerRect.anchoredPosition = new Vector2(0f, 18f);
+        footerRect.sizeDelta = new Vector2(660f, 26f);
+
+        txtPauseFooter = footerObj.GetComponent<TextMeshProUGUI>();
+        if (font != null) txtPauseFooter.font = font;
+        txtPauseFooter.fontSize = 13.5f;
+        txtPauseFooter.fontStyle = FontStyles.Normal;
+        txtPauseFooter.alignment = TextAlignmentOptions.Center;
+        txtPauseFooter.color = new Color(0.6f, 0.7f, 0.8f, 0.85f);
+        txtPauseFooter.text = "<b><color=#72F526>[ESC / ESPAÇO]</color></b> Continuar   <color=#475569>•</color>   <b><color=#FACC15>[R]</color></b> Reiniciar   <color=#475569>•</color>   <b><color=#38BDF8>[M]</color></b> Menu   <color=#475569>•</color>   <b><color=#F54761>[Q]</color></b> Sair";
+
+        pauseOverlayObj.SetActive(false);
+    }
+
+    /// <summary>
+    /// Verifica se o jogo está em condições de pausar (não na tela de login, nem nas telas de vitória/derrota/transição)
+    /// </summary>
+    public bool CanOpenPauseMenu()
+    {
+        if (isVictoryScreenOpen || isDefeatScreenOpen || isTransitioningLevel) return false;
+        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning)) return false;
+        if (LoginManager.Instance != null && LoginManager.Instance.loginPanel != null && LoginManager.Instance.loginPanel.activeSelf) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// Exibe o menu de pause com animação retrô e congela o tempo da partida
+    /// </summary>
+    public void ShowPauseMenu()
+    {
+        if (isPauseMenuOpen) return;
+        if (!CanOpenPauseMenu()) return;
+
+        isPauseMenuOpen = true;
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.isGamePaused = true;
+        }
+
+        Time.timeScale = 0f;
+
+        if (pauseOverlayObj == null)
+        {
+            TMP_FontAsset baseFont = customFont ?? TMP_Settings.defaultFontAsset;
+            BuildPauseMenuOverlay(rootCanvas.transform, baseFont);
+        }
+
+        if (pauseOverlayObj != null)
+        {
+            pauseOverlayObj.transform.SetAsLastSibling();
+            pauseOverlayObj.SetActive(true);
+            UpdatePauseStatsUI();
+        }
+
+        // Áudio: Duck na música tema
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.DuckMusic(0.12f, 0.20f);
+        }
+
+        // Toca som retrô de pause
+        AudioClip soundToPlay = pauseSound != null ? pauseSound : GenerateRetroPauseSound(true);
+        if (audioSource != null && soundToPlay != null)
+        {
+            audioSource.PlayOneShot(soundToPlay);
+        }
+
+        if (currentPauseRoutine != null) StopCoroutine(currentPauseRoutine);
+        currentPauseRoutine = StartCoroutine(PausePunchInRoutine());
+    }
+
+    /// <summary>
+    /// Oculta o menu de pause com animação suave e retoma o jogo
+    /// </summary>
+    public void HidePauseMenu()
+    {
+        if (!isPauseMenuOpen) return;
+
+        // Toca som de unpause
+        AudioClip soundToPlay = unpauseSound != null ? unpauseSound : GenerateRetroPauseSound(false);
+        if (audioSource != null && soundToPlay != null)
+        {
+            audioSource.PlayOneShot(soundToPlay);
+        }
+
+        // Restaura volume da música tema
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.RestoreMusic(0.25f);
+        }
+
+        if (currentPauseRoutine != null) StopCoroutine(currentPauseRoutine);
+        currentPauseRoutine = StartCoroutine(PauseFadeOutRoutine());
+    }
+
+    /// <summary>
+    /// Oculta o menu de pause imediatamente (usado para reiniciar partida ou retornar ao menu principal)
+    /// </summary>
+    public void HidePauseMenuImmediate()
+    {
+        isPauseMenuOpen = false;
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.isGamePaused = false;
+        }
+
+        if (currentPauseRoutine != null)
+        {
+            StopCoroutine(currentPauseRoutine);
+            currentPauseRoutine = null;
+        }
+
+        if (pauseOverlayObj != null)
+        {
+            pauseOverlayObj.SetActive(false);
+            if (pauseCanvasGroup != null)
+            {
+                pauseCanvasGroup.alpha = 0f;
+                pauseCanvasGroup.blocksRaycasts = false;
+            }
+        }
+
+        Time.timeScale = 1f;
+
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.RestoreMusic(0.25f);
+        }
+    }
+
+    private void UpdatePauseStatsUI()
+    {
+        if (txtPauseStats == null) return;
+
+        string p1Pts = useTennisNotation ? FormatTennisScore(cachedP1Points, cachedP2Points) : cachedP1Points.ToString("00");
+        string p2Pts = useTennisNotation ? FormatTennisScore(cachedP2Points, cachedP1Points) : cachedP2Points.ToString("00");
+
+        txtPauseStats.text =
+            $"<b><color=#FACC15>TORNEIO:</color></b>  NÍVEL {cachedLevel} - {cachedGraduation.ToUpper()}\n" +
+            $"<b><color=#72F526>SETS:</color></b>  VOCÊ <color=#85F226>{cachedP1Sets}</color>  x  <color=#F54761>{cachedP2Sets}</color> I.A. RIVAL   <color=#475569>•</color>   <b><color=#38BDF8>PONTOS:</color></b>  <color=#85F226>{p1Pts}</color>  x  <color=#F54761>{p2Pts}</color>";
+    }
+
+    private IEnumerator PausePunchInRoutine()
+    {
+        if (pauseCanvasGroup != null)
+        {
+            pauseCanvasGroup.blocksRaycasts = true;
+        }
+
+        float elapsed = 0f;
+        float duration = 0.28f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            // Punch-in elástico retrô
+            float scale = Mathf.Lerp(0.5f, 1.08f, Mathf.Sin(t * Mathf.PI * 0.5f));
+            if (t >= 0.75f)
+            {
+                scale = Mathf.Lerp(1.08f, 1.0f, (t - 0.75f) / 0.25f);
+            }
+
+            if (pauseCanvasGroup != null) pauseCanvasGroup.alpha = Mathf.Clamp01(t * 1.5f);
+            if (pauseCardRect != null) pauseCardRect.localScale = new Vector3(scale, scale, 1f);
+            yield return null;
+        }
+
+        if (pauseCardRect != null) pauseCardRect.localScale = Vector3.one;
+        if (pauseCanvasGroup != null) pauseCanvasGroup.alpha = 1f;
+
+        currentPauseRoutine = null;
+    }
+
+    private IEnumerator PauseFadeOutRoutine()
+    {
+        float elapsed = 0f;
+        float duration = 0.16f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+
+            if (pauseCanvasGroup != null) pauseCanvasGroup.alpha = Mathf.Lerp(1f, 0f, t);
+            if (pauseCardRect != null) pauseCardRect.localScale = Vector3.Lerp(Vector3.one, new Vector3(0.95f, 0.95f, 1f), t);
+            yield return null;
+        }
+
+        if (pauseCanvasGroup != null)
+        {
+            pauseCanvasGroup.alpha = 0f;
+            pauseCanvasGroup.blocksRaycasts = false;
+        }
+
+        if (pauseOverlayObj != null)
+        {
+            pauseOverlayObj.SetActive(false);
+        }
+
+        isPauseMenuOpen = false;
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.isGamePaused = false;
+        }
+
+        Time.timeScale = 1f;
+        currentPauseRoutine = null;
+    }
+
+    private void OnPauseResumeClicked()
+    {
+        if (!isPauseMenuOpen) return;
+        HidePauseMenu();
+    }
+
+    private void OnPauseRestartClicked()
+    {
+        if (!isPauseMenuOpen) return;
+        HidePauseMenuImmediate();
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.RestartCurrentMatch();
+        }
+    }
+
+    private void OnPauseMenuClicked()
+    {
+        if (!isPauseMenuOpen) return;
+        HidePauseMenuImmediate();
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.ReturnToMainMenu();
+        }
+    }
+
+    private void OnPauseQuitClicked()
+    {
+        if (!isPauseMenuOpen) return;
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.QuitGame();
+        }
+        else
+        {
+            Application.Quit();
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#endif
+        }
+    }
+
+    private AudioClip GenerateRetroPauseSound(bool pause)
+    {
+        int sampleRate = 44100;
+        float duration = 0.12f;
+        int totalSamples = Mathf.FloorToInt(sampleRate * duration);
+        float[] samples = new float[totalSamples];
+
+        // Se for pause: tom agudo subindo rápido (440Hz -> 660Hz)
+        // Se for unpause: tom descendo (660Hz -> 440Hz)
+        float startFreq = pause ? 440f : 660f;
+        float endFreq = pause ? 660f : 440f;
+        float phase = 0f;
+
+        for (int i = 0; i < totalSamples; i++)
+        {
+            float t = (float)i / sampleRate;
+            float progress = t / duration;
+            float currentFreq = Mathf.Lerp(startFreq, endFreq, progress);
+            phase += 2f * Mathf.PI * currentFreq * (1f / sampleRate);
+
+            float envelope = Mathf.Exp(-t * 22f);
+            float sine = Mathf.Sin(phase);
+            float square = Mathf.Sign(sine);
+            float wave = (sine * 0.7f + square * 0.2f) * envelope * 0.5f;
+
+            samples[i] = wave;
+        }
+
+        AudioClip clip = AudioClip.Create(pause ? "PauseRetroBeep" : "UnpauseRetroBeep", totalSamples, 1, sampleRate, false);
         clip.SetData(samples, 0);
         return clip;
     }

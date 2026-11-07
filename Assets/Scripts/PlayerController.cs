@@ -92,7 +92,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning))
+        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning || GameManager.Instance.IsGamePaused))
         {
             movement = Vector2.zero;
             if (animator != null) animator.SetBool("IsRunning", false);
@@ -139,7 +139,7 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning))
+        if (GameManager.Instance != null && (GameManager.Instance.IsGameFinished || GameManager.Instance.IsLevelTransitioning || GameManager.Instance.IsGamePaused))
         {
             if (rb != null) rb.linearVelocity = Vector2.zero;
             return;

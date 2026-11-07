@@ -34,10 +34,12 @@ public class GameManager : MonoBehaviour
     public bool isGameWon = false;
     public bool isGameDefeated = false;
     public bool isLevelTransitioning = false;
+    public bool isGamePaused = false;
     public bool IsGameFinished => isGameFinished;
     public bool IsGameWon => isGameWon;
     public bool IsGameDefeated => isGameDefeated;
     public bool IsLevelTransitioning => isLevelTransitioning || (ScoreboardHUD.Instance != null && ScoreboardHUD.Instance.IsTransitioningLevel);
+    public bool IsGamePaused => isGamePaused || (ScoreboardHUD.Instance != null && ScoreboardHUD.Instance.IsPauseMenuOpen);
 
     [Header("Interface de Usuário (Compatibilidade TMP)")]
     public TextMeshProUGUI txtPlayer1Points;
@@ -127,11 +129,13 @@ public class GameManager : MonoBehaviour
         isGameFinished = false;
         isGameWon = false;
         isGameDefeated = false;
+        isGamePaused = false;
 
         if (ScoreboardHUD.Instance != null)
         {
             ScoreboardHUD.Instance.HideVictoryScreen();
             ScoreboardHUD.Instance.HideDefeatScreen();
+            ScoreboardHUD.Instance.HidePauseMenuImmediate();
         }
 
         ResetMatch();
@@ -376,6 +380,82 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Alterna entre pausar e retomar a partida
+    /// </summary>
+    public void TogglePause()
+    {
+        if (ScoreboardHUD.Instance != null)
+        {
+            if (ScoreboardHUD.Instance.IsPauseMenuOpen)
+            {
+                ResumeGame();
+            }
+            else
+            {
+                PauseGame();
+            }
+        }
+        else
+        {
+            if (isGamePaused) ResumeGame();
+            else PauseGame();
+        }
+    }
+
+    /// <summary>
+    /// Pausa a partida atual
+    /// </summary>
+    public void PauseGame()
+    {
+        if (isGameFinished || IsLevelTransitioning) return;
+        if (LoginManager.Instance != null && LoginManager.Instance.loginPanel != null && LoginManager.Instance.loginPanel.activeSelf) return;
+
+        isGamePaused = true;
+        Time.timeScale = 0f;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.ShowPauseMenu();
+        }
+    }
+
+    /// <summary>
+    /// Retoma a partida atual
+    /// </summary>
+    public void ResumeGame()
+    {
+        isGamePaused = false;
+        Time.timeScale = 1f;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.HidePauseMenu();
+        }
+    }
+
+    /// <summary>
+    /// Reinicia a partida atual no nível corrente (zera os sets e pontos sem resetar o nível)
+    /// </summary>
+    public void RestartCurrentMatch()
+    {
+        isGameFinished = false;
+        isGameWon = false;
+        isGameDefeated = false;
+        isGamePaused = false;
+        Time.timeScale = 1f;
+
+        if (ScoreboardHUD.Instance != null)
+        {
+            ScoreboardHUD.Instance.HidePauseMenuImmediate();
+            ScoreboardHUD.Instance.HideVictoryScreen();
+            ScoreboardHUD.Instance.HideDefeatScreen();
+            ScoreboardHUD.Instance.ShowAnnouncement("🔄 PARTIDA REINICIADA!", ScoreboardHUD.Instance.goldColor, 1.2f);
+        }
+
+        ResetMatchAndServe();
+    }
+
+    /// <summary>
     /// Reinicia o circuito do torneio a partir do nível 1 para uma nova campanha
     /// </summary>
     public void RestartTournament()
@@ -383,9 +463,11 @@ public class GameManager : MonoBehaviour
         isGameFinished = false;
         isGameWon = false;
         isGameDefeated = false;
+        isGamePaused = false;
 
         if (ScoreboardHUD.Instance != null)
         {
+            ScoreboardHUD.Instance.HidePauseMenuImmediate();
             ScoreboardHUD.Instance.HideVictoryScreen();
             ScoreboardHUD.Instance.HideDefeatScreen();
         }
@@ -402,9 +484,11 @@ public class GameManager : MonoBehaviour
         isGameFinished = false;
         isGameWon = false;
         isGameDefeated = false;
+        isGamePaused = false;
 
         if (ScoreboardHUD.Instance != null)
         {
+            ScoreboardHUD.Instance.HidePauseMenuImmediate();
             ScoreboardHUD.Instance.HideVictoryScreen();
             ScoreboardHUD.Instance.HideDefeatScreen();
         }
@@ -421,9 +505,11 @@ public class GameManager : MonoBehaviour
         isGameFinished = false;
         isGameWon = false;
         isGameDefeated = false;
+        isGamePaused = false;
 
         if (ScoreboardHUD.Instance != null)
         {
+            ScoreboardHUD.Instance.HidePauseMenuImmediate();
             ScoreboardHUD.Instance.HideVictoryScreen();
             ScoreboardHUD.Instance.HideDefeatScreen();
         }
