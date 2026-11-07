@@ -277,7 +277,7 @@ public class LoginManager : MonoBehaviour
         subRect.localScale = Vector3.one;
 
         if (baseFont != null) txtSub.font = baseFont;
-        txtSub.text = "★ VIRTUAL COURT CHAMPIONSHIP ★";
+        txtSub.text = "• VIRTUAL COURT CHAMPIONSHIP •";
         txtSub.fontSize = 17;
         txtSub.characterSpacing = 3;
         txtSub.fontStyle = FontStyles.Bold;
@@ -451,7 +451,7 @@ public class LoginManager : MonoBehaviour
         rControlsText.anchoredPosition = Vector2.zero;
 
         if (baseFont != null) txtControls.font = baseFont;
-        txtControls.text = "<b><color=#72F526>CONTROLES</color></b>\n<color=#E2E8F0>[W][A][S][D] / [SETAS]</color> Mover   •   <color=#E2E8F0>[ESPAÇO]</color> Sacar & Rebater\n<color=#FACC15>⚡ Dica: Movimente-se ao rebater para aplicar EFEITO (Spin)!</color>";
+        txtControls.text = "<b><color=#72F526>CONTROLES</color></b>\n<color=#E2E8F0>[W][A][S][D] / [SETAS]</color> Mover   •   <color=#E2E8F0>[ESPAÇO]</color> Sacar & Rebater\n<color=#FACC15>• Dica: Movimente-se ao rebater para aplicar EFEITO (Spin)!</color>";
         txtControls.fontSize = 15;
         txtControls.lineSpacing = 10;
         txtControls.alignment = TextAlignmentOptions.Center;

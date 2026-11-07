@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -114,7 +115,7 @@ public class ScoreboardHUD : MonoBehaviour
     private CanvasGroup victoryCanvasGroup;
     private RectTransform victoryCardRect;
     private TextMeshProUGUI txtVictoryTag;
-    private TextMeshProUGUI txtVictoryTrophy;
+    private RectTransform iconVictoryRect;
     private TextMeshProUGUI txtVictoryTitle;
     private TextMeshProUGUI txtVictorySubtitle;
     private TextMeshProUGUI txtVictoryStats;
@@ -135,7 +136,7 @@ public class ScoreboardHUD : MonoBehaviour
     private CanvasGroup defeatCanvasGroup;
     private RectTransform defeatCardRect;
     private TextMeshProUGUI txtDefeatTag;
-    private TextMeshProUGUI txtDefeatIcon;
+    private RectTransform iconDefeatRect;
     private TextMeshProUGUI txtDefeatTitle;
     private TextMeshProUGUI txtDefeatSubtitle;
     private TextMeshProUGUI txtDefeatStats;
@@ -156,7 +157,7 @@ public class ScoreboardHUD : MonoBehaviour
     private CanvasGroup pauseCanvasGroup;
     private RectTransform pauseCardRect;
     private TextMeshProUGUI txtPauseTag;
-    private TextMeshProUGUI txtPauseIcon;
+    private RectTransform iconPauseRect;
     private TextMeshProUGUI txtPauseTitle;
     private TextMeshProUGUI txtPauseSubtitle;
     private TextMeshProUGUI txtPauseStats;
@@ -262,10 +263,10 @@ public class ScoreboardHUD : MonoBehaviour
             }
 
             // Efeito comemorativo de pulso contínuo no troféu
-            if (txtVictoryTrophy != null)
+            if (iconVictoryRect != null)
             {
                 float pulse = 1f + (Mathf.Sin(Time.unscaledTime * 4.5f) * 0.08f);
-                txtVictoryTrophy.transform.localScale = new Vector3(pulse, pulse, 1f);
+                iconVictoryRect.localScale = new Vector3(pulse, pulse, 1f);
             }
         }
         else if (isDefeatScreenOpen)
@@ -288,10 +289,10 @@ public class ScoreboardHUD : MonoBehaviour
             }
 
             // Efeito dramático de pulso no ícone de derrota
-            if (txtDefeatIcon != null)
+            if (iconDefeatRect != null)
             {
                 float pulse = 1f + (Mathf.Sin(Time.unscaledTime * 3.5f) * 0.06f);
-                txtDefeatIcon.transform.localScale = new Vector3(pulse, pulse, 1f);
+                iconDefeatRect.localScale = new Vector3(pulse, pulse, 1f);
             }
         }
         else if (isPauseMenuOpen)
@@ -319,10 +320,10 @@ public class ScoreboardHUD : MonoBehaviour
             }
 
             // Efeito sutil de pulso no ícone de pause
-            if (txtPauseIcon != null)
+            if (iconPauseRect != null)
             {
                 float pulse = 1f + (Mathf.Sin(Time.unscaledTime * 3.5f) * 0.06f);
-                txtPauseIcon.transform.localScale = new Vector3(pulse, pulse, 1f);
+                iconPauseRect.localScale = new Vector3(pulse, pulse, 1f);
             }
         }
         else
@@ -915,7 +916,7 @@ public class ScoreboardHUD : MonoBehaviour
         txtTransitionTag.fontStyle = FontStyles.Bold;
         txtTransitionTag.alignment = TextAlignmentOptions.Center;
         txtTransitionTag.color = goldColor;
-        txtTransitionTag.text = "★ NOVO NÍVEL ALCANÇADO ★";
+        txtTransitionTag.text = "• NOVO NÍVEL ALCANÇADO •";
 
         // 2. Título do Nível (Em destaque retrô arcade com gradiente neon)
         GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -1026,6 +1027,163 @@ public class ScoreboardHUD : MonoBehaviour
         }
         tex.Apply();
         return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+    }
+
+    private static Sprite cachedTrophySprite;
+    private static Sprite cachedSkullSprite;
+    private static Sprite cachedPauseSprite;
+
+    private static Sprite CreatePixelArtSprite(string[] rows, Dictionary<char, Color> palette)
+    {
+        int height = rows.Length;
+        int width = rows[0].Length;
+        Texture2D tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Point;
+        tex.wrapMode = TextureWrapMode.Clamp;
+
+        for (int y = 0; y < height; y++)
+        {
+            string rowStr = rows[height - 1 - y];
+            for (int x = 0; x < width; x++)
+            {
+                char c = x < rowStr.Length ? rowStr[x] : '.';
+                if (palette.TryGetValue(c, out Color col))
+                {
+                    tex.SetPixel(x, y, col);
+                }
+                else
+                {
+                    tex.SetPixel(x, y, Color.clear);
+                }
+            }
+        }
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f);
+    }
+
+    public static Sprite CreateTrophySprite()
+    {
+        if (cachedTrophySprite != null) return cachedTrophySprite;
+
+        string[] rows = new string[]
+        {
+            "....................",
+            "...##############...",
+            "..#WWBBBBBBBBBBC#...",
+            "..#WBAAAAAAAAAAC#...",
+            ".#B#WAAAAAAAAAAC#C#.",
+            ".#B#WAAAAAAAAAAC#C#.",
+            ".#B#WAAAAAAAAAAC#C#.",
+            "..#B#AAAAAAAAAC#C#..",
+            "...###WAAAAAA###....",
+            "....#WBAAAAAC#......",
+            ".....#WAAAAC#.......",
+            "......#WBAAC#.......",
+            ".......#AA#.........",
+            ".......#AA#.........",
+            "......#BAAAC#.......",
+            ".....#BAAAAAC#......",
+            "....############....",
+            "...#WWBBBBBBBBBC#...",
+            "...#BAAAAAAAAAAC#...",
+            "...##############..."
+        };
+
+        var palette = new Dictionary<char, Color>
+        {
+            { '.', Color.clear },
+            { '#', new Color(0.47f, 0.21f, 0.05f, 1f) }, // Dark amber outline
+            { 'W', Color.white },                          // White sparkle
+            { 'B', new Color(1f, 0.96f, 0.60f, 1f) },     // Pale gold highlight
+            { 'A', new Color(0.98f, 0.80f, 0.08f, 1f) },     // Bright yellow gold
+            { 'C', new Color(0.79f, 0.54f, 0.02f, 1f) }      // Deep shadow gold
+        };
+
+        cachedTrophySprite = CreatePixelArtSprite(rows, palette);
+        return cachedTrophySprite;
+    }
+
+    public static Sprite CreateSkullSprite()
+    {
+        if (cachedSkullSprite != null) return cachedSkullSprite;
+
+        string[] rows = new string[]
+        {
+            "....................",
+            "......########......",
+            "....##BBBBBBCC##....",
+            "...#BBBBBBBBCCCC#...",
+            "..#BBWWBBBBCCCCCC#..",
+            "..#BWW#BBBBCCCCCC#..",
+            ".#BB##BBBBCCCCCC##..",
+            ".#BBBBBBBBCCCCCCCC#.",
+            ".#BBBBBBBBCCCCCCCC#.",
+            ".#BB..BBBBCCCC..CC#.",
+            ".#B....BBCCCC....C#.",
+            ".#BB..BBBBCCCC..CC#.",
+            "..#BBBBBBCCCCCCCC#..",
+            "...#BBBB#..#CCCC#...",
+            "....#BBB####CCC#....",
+            ".....#BB#..#CC#.....",
+            ".....#B#....#C#.....",
+            ".....#B#....#C#.....",
+            "......#B####C#......",
+            ".......######......."
+        };
+
+        var palette = new Dictionary<char, Color>
+        {
+            { '.', Color.clear },
+            { '#', new Color(0.30f, 0.02f, 0.10f, 1f) }, // Deep dark crimson outline
+            { 'W', new Color(1f, 0.90f, 0.92f, 1f) },     // Soft highlight
+            { 'B', new Color(0.96f, 0.25f, 0.37f, 1f) }, // Coral red
+            { 'C', new Color(0.62f, 0.07f, 0.22f, 1f) }  // Crimson shadow
+        };
+
+        cachedSkullSprite = CreatePixelArtSprite(rows, palette);
+        return cachedSkullSprite;
+    }
+
+    public static Sprite CreatePauseSprite()
+    {
+        if (cachedPauseSprite != null) return cachedPauseSprite;
+
+        string[] rows = new string[]
+        {
+            "....................",
+            "..######....######..",
+            ".#WWBBB#...#WWBBB#..",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            ".#WAAAAC#..#WAAAAC#.",
+            "..#CCCC#....#CCCC#..",
+            "...####......####..."
+        };
+
+        var palette = new Dictionary<char, Color>
+        {
+            { '.', Color.clear },
+            { '#', new Color(0.05f, 0.29f, 0.43f, 1f) }, // Dark cyan outline
+            { 'W', new Color(0.88f, 0.95f, 1f, 1f) },     // Bright neon glint
+            { 'B', new Color(0.49f, 0.83f, 0.99f, 1f) }, // Light sky cyan
+            { 'A', new Color(0.22f, 0.74f, 0.97f, 1f) }, // Electric cyan
+            { 'C', new Color(0.01f, 0.52f, 0.78f, 1f) }  // Deep cyan shadow
+        };
+
+        cachedPauseSprite = CreatePixelArtSprite(rows, palette);
+        return cachedPauseSprite;
     }
 
     #endregion
@@ -1361,21 +1519,21 @@ public class ScoreboardHUD : MonoBehaviour
         // Preenche os textos temáticos de forma direta e limpa
         if (isChampion)
         {
-            if (txtTransitionTag != null) txtTransitionTag.text = "★ TORNEIO CONCLUÍDO ★";
+            if (txtTransitionTag != null) txtTransitionTag.text = "• TORNEIO CONCLUÍDO •";
             if (txtTransitionTitle != null) txtTransitionTitle.text = "GRANDE CAMPEÃO!";
             if (txtTransitionSubtitle != null) txtTransitionSubtitle.text = $"GRADUAÇÃO MÁXIMA: {toGrad.ToUpper()}";
             if (txtTransitionPrompt != null) txtTransitionPrompt.text = "<b><color=#72F526>PREPARAR... SAQUE! (MODO CAMPEÃO)</color></b>\n<size=12><color=#94A3B8>Pressione [ESPAÇO] para jogar ou aguarde...</color></size>";
         }
         else if (isRetry)
         {
-            if (txtTransitionTag != null) txtTransitionTag.text = "★ REVANCHE ★";
+            if (txtTransitionTag != null) txtTransitionTag.text = "• REVANCHE •";
             if (txtTransitionTitle != null) txtTransitionTitle.text = $"NÍVEL {toLevel}";
             if (txtTransitionSubtitle != null) txtTransitionSubtitle.text = $"GRADUAÇÃO: {toGrad.ToUpper()}";
             if (txtTransitionPrompt != null) txtTransitionPrompt.text = "<b><color=#72F526>PREPARAR... SAQUE!</color></b>\n<size=12><color=#94A3B8>Pressione [ESPAÇO] para sacar ou aguarde...</color></size>";
         }
         else
         {
-            if (txtTransitionTag != null) txtTransitionTag.text = "★ NOVO NÍVEL ALCANÇADO ★";
+            if (txtTransitionTag != null) txtTransitionTag.text = "• NOVO NÍVEL ALCANÇADO •";
             if (txtTransitionTitle != null) txtTransitionTitle.text = $"NÍVEL {toLevel}";
             if (txtTransitionSubtitle != null) txtTransitionSubtitle.text = $"GRADUAÇÃO: {toGrad.ToUpper()}";
             if (txtTransitionPrompt != null) txtTransitionPrompt.text = "<b><color=#72F526>PREPARAR... SAQUE!</color></b>\n<size=12><color=#94A3B8>Pressione [ESPAÇO] para iniciar ou aguarde...</color></size>";
@@ -1552,23 +1710,25 @@ public class ScoreboardHUD : MonoBehaviour
         txtVictoryTag.fontStyle = FontStyles.Bold;
         txtVictoryTag.alignment = TextAlignmentOptions.Center;
         txtVictoryTag.color = goldColor;
-        txtVictoryTag.text = "★ CIRCUITO MUNDIAL CONCLUÍDO ★";
+        txtVictoryTag.text = "• CIRCUITO MUNDIAL CONCLUÍDO •";
 
-        // 2. Troféu Central Dourado
-        GameObject trophyObj = new GameObject("Txt_Trophy", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        // 2. Troféu Central Dourado (Pixel Art Procedural)
+        Transform oldTrophy = cardObj.transform.Find("Icon_Trophy") ?? cardObj.transform.Find("Txt_Trophy");
+        if (oldTrophy != null) Destroy(oldTrophy.gameObject);
+
+        GameObject trophyObj = new GameObject("Icon_Trophy", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         trophyObj.transform.SetParent(cardObj.transform, false);
-        RectTransform trophyRect = trophyObj.GetComponent<RectTransform>();
-        trophyRect.anchorMin = new Vector2(0.5f, 1f);
-        trophyRect.anchorMax = new Vector2(0.5f, 1f);
-        trophyRect.pivot = new Vector2(0.5f, 1f);
-        trophyRect.anchoredPosition = new Vector2(0f, -62f);
-        trophyRect.sizeDelta = new Vector2(200f, 50f);
+        iconVictoryRect = trophyObj.GetComponent<RectTransform>();
+        iconVictoryRect.anchorMin = new Vector2(0.5f, 1f);
+        iconVictoryRect.anchorMax = new Vector2(0.5f, 1f);
+        iconVictoryRect.pivot = new Vector2(0.5f, 1f);
+        iconVictoryRect.anchoredPosition = new Vector2(0f, -58f);
+        iconVictoryRect.sizeDelta = new Vector2(52f, 52f);
 
-        txtVictoryTrophy = trophyObj.GetComponent<TextMeshProUGUI>();
-        if (font != null) txtVictoryTrophy.font = font;
-        txtVictoryTrophy.fontSize = 42f;
-        txtVictoryTrophy.alignment = TextAlignmentOptions.Center;
-        txtVictoryTrophy.text = "<color=#FACC15>★ 🏆 ★</color>";
+        Image imgTrophy = trophyObj.GetComponent<Image>();
+        imgTrophy.sprite = CreateTrophySprite();
+        imgTrophy.preserveAspect = true;
+        imgTrophy.raycastTarget = false;
 
         // 3. Título Principal de Vitória
         GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -2019,23 +2179,25 @@ public class ScoreboardHUD : MonoBehaviour
         txtDefeatTag.fontStyle = FontStyles.Bold;
         txtDefeatTag.alignment = TextAlignmentOptions.Center;
         txtDefeatTag.color = new Color(0.96f, 0.28f, 0.38f, 1f);
-        txtDefeatTag.text = "★ CIRCUITO ENCERRADO • DERROTA ★";
+        txtDefeatTag.text = "• CIRCUITO ENCERRADO • DERROTA •";
 
-        // 2. Ícone Central Dramático de Derrota
-        GameObject iconObj = new GameObject("Txt_Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        // 2. Ícone Central Dramático de Derrota (Pixel Art Procedural)
+        Transform oldDefeat = cardObj.transform.Find("Icon_Defeat") ?? cardObj.transform.Find("Txt_Icon");
+        if (oldDefeat != null) Destroy(oldDefeat.gameObject);
+
+        GameObject iconObj = new GameObject("Icon_Defeat", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         iconObj.transform.SetParent(cardObj.transform, false);
-        RectTransform iconRect = iconObj.GetComponent<RectTransform>();
-        iconRect.anchorMin = new Vector2(0.5f, 1f);
-        iconRect.anchorMax = new Vector2(0.5f, 1f);
-        iconRect.pivot = new Vector2(0.5f, 1f);
-        iconRect.anchoredPosition = new Vector2(0f, -62f);
-        iconRect.sizeDelta = new Vector2(200f, 50f);
+        iconDefeatRect = iconObj.GetComponent<RectTransform>();
+        iconDefeatRect.anchorMin = new Vector2(0.5f, 1f);
+        iconDefeatRect.anchorMax = new Vector2(0.5f, 1f);
+        iconDefeatRect.pivot = new Vector2(0.5f, 1f);
+        iconDefeatRect.anchoredPosition = new Vector2(0f, -58f);
+        iconDefeatRect.sizeDelta = new Vector2(52f, 52f);
 
-        txtDefeatIcon = iconObj.GetComponent<TextMeshProUGUI>();
-        if (font != null) txtDefeatIcon.font = font;
-        txtDefeatIcon.fontSize = 42f;
-        txtDefeatIcon.alignment = TextAlignmentOptions.Center;
-        txtDefeatIcon.text = "<color=#F54761>★ 💀 ★</color>";
+        Image imgDefeat = iconObj.GetComponent<Image>();
+        imgDefeat.sprite = CreateSkullSprite();
+        imgDefeat.preserveAspect = true;
+        imgDefeat.raycastTarget = false;
 
         // 3. Título Principal de Derrota
         GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
@@ -2488,23 +2650,25 @@ public class ScoreboardHUD : MonoBehaviour
         txtPauseTag.fontStyle = FontStyles.Bold;
         txtPauseTag.alignment = TextAlignmentOptions.Center;
         txtPauseTag.color = new Color(0.22f, 0.74f, 0.97f, 1f);
-        txtPauseTag.text = "★ PAUSA • JOGO INTERROMPIDO ★";
+        txtPauseTag.text = "• PAUSA • JOGO INTERROMPIDO •";
 
-        // 2. Ícone Central de Pause
-        GameObject iconObj = new GameObject("Txt_Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        // 2. Ícone Central de Pause (Pixel Art Procedural)
+        Transform oldPause = cardObj.transform.Find("Icon_Pause") ?? cardObj.transform.Find("Txt_Icon");
+        if (oldPause != null) Destroy(oldPause.gameObject);
+
+        GameObject iconObj = new GameObject("Icon_Pause", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         iconObj.transform.SetParent(cardObj.transform, false);
-        RectTransform iconRect = iconObj.GetComponent<RectTransform>();
-        iconRect.anchorMin = new Vector2(0.5f, 1f);
-        iconRect.anchorMax = new Vector2(0.5f, 1f);
-        iconRect.pivot = new Vector2(0.5f, 1f);
-        iconRect.anchoredPosition = new Vector2(0f, -50f);
-        iconRect.sizeDelta = new Vector2(200f, 42f);
+        iconPauseRect = iconObj.GetComponent<RectTransform>();
+        iconPauseRect.anchorMin = new Vector2(0.5f, 1f);
+        iconPauseRect.anchorMax = new Vector2(0.5f, 1f);
+        iconPauseRect.pivot = new Vector2(0.5f, 1f);
+        iconPauseRect.anchoredPosition = new Vector2(0f, -48f);
+        iconPauseRect.sizeDelta = new Vector2(40f, 40f);
 
-        txtPauseIcon = iconObj.GetComponent<TextMeshProUGUI>();
-        if (font != null) txtPauseIcon.font = font;
-        txtPauseIcon.fontSize = 36f;
-        txtPauseIcon.alignment = TextAlignmentOptions.Center;
-        txtPauseIcon.text = "<color=#38BDF8>★ ⏸ ★</color>";
+        Image imgPause = iconObj.GetComponent<Image>();
+        imgPause.sprite = CreatePauseSprite();
+        imgPause.preserveAspect = true;
+        imgPause.raycastTarget = false;
 
         // 3. Título Principal de Pause
         GameObject titleObj = new GameObject("Txt_Title", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));

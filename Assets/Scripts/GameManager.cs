@@ -167,12 +167,12 @@ public class GameManager : MonoBehaviour
             // Checa Match Point
             if (player1Sets == 1 && player1Points >= 4 && player1Points > player2Points)
             {
-                ScoreboardHUD.Instance.ShowAnnouncement("🔥 MATCH POINT (VOCÊ)!", new Color(1f, 0.45f, 0.2f, 1f), 1.5f);
+                ScoreboardHUD.Instance.ShowAnnouncement("MATCH POINT (VOCÊ)!", new Color(1f, 0.45f, 0.2f, 1f), 1.5f);
             }
             // Checa Set Point
             else if (player1Points >= 4 && player1Points > player2Points)
             {
-                ScoreboardHUD.Instance.ShowAnnouncement("⚠️ SET POINT (VOCÊ)!", ScoreboardHUD.Instance.goldColor, 1.3f);
+                ScoreboardHUD.Instance.ShowAnnouncement("SET POINT (VOCÊ)!", ScoreboardHUD.Instance.goldColor, 1.3f);
             }
             // Checa Deuce / Vantagem
             else if (player1Points >= 3 && player2Points >= 3 && player1Points == player2Points)
@@ -193,12 +193,12 @@ public class GameManager : MonoBehaviour
             // Checa Match Point da IA
             if (player2Sets == 1 && player2Points >= 4 && player2Points > player1Points)
             {
-                ScoreboardHUD.Instance.ShowAnnouncement("🔥 MATCH POINT (I.A.)!", new Color(1f, 0.35f, 0.35f, 1f), 1.5f);
+                ScoreboardHUD.Instance.ShowAnnouncement("MATCH POINT (I.A.)!", new Color(1f, 0.35f, 0.35f, 1f), 1.5f);
             }
             // Checa Set Point da IA
             else if (player2Points >= 4 && player2Points > player1Points)
             {
-                ScoreboardHUD.Instance.ShowAnnouncement("⚠️ SET POINT (I.A.)!", new Color(0.98f, 0.5f, 0.2f, 1f), 1.3f);
+                ScoreboardHUD.Instance.ShowAnnouncement("SET POINT (I.A.)!", new Color(0.98f, 0.5f, 0.2f, 1f), 1.3f);
             }
             // Checa Deuce / Vantagem
             else if (player1Points >= 3 && player2Points >= 3 && player1Points == player2Points)
@@ -223,7 +223,7 @@ public class GameManager : MonoBehaviour
             player1Sets++;
             if (ScoreboardHUD.Instance != null)
             {
-                ScoreboardHUD.Instance.ShowAnnouncement("🎉 SET PARA VOCÊ!", ScoreboardHUD.Instance.goldColor, 2.2f);
+                ScoreboardHUD.Instance.ShowAnnouncement("SET PARA VOCÊ!", ScoreboardHUD.Instance.goldColor, 2.2f);
             }
 
             ResetSetPoints();
@@ -254,7 +254,7 @@ public class GameManager : MonoBehaviour
                 isLevelTransitioning = true;
                 if (ScoreboardHUD.Instance != null)
                 {
-                    ScoreboardHUD.Instance.ShowAnnouncement("🏆 VOCÊ VENCEU A PARTIDA!", ScoreboardHUD.Instance.goldColor, 1.8f);
+                    ScoreboardHUD.Instance.ShowAnnouncement("VOCÊ VENCEU A PARTIDA!", ScoreboardHUD.Instance.goldColor, 1.8f);
                 }
                 Invoke(nameof(StartNextLevelTransition), 1.8f);
             }
@@ -305,7 +305,7 @@ public class GameManager : MonoBehaviour
         isGameWon = true;
 
         if (txtMatchStatus != null)
-            txtMatchStatus.text = "★ PARABÉNS! VOCÊ É O GRANDE CAMPEÃO! ★";
+            txtMatchStatus.text = "• PARABÉNS! VOCÊ É O GRANDE CAMPEÃO! •";
 
         if (ballScript != null)
         {
@@ -314,7 +314,7 @@ public class GameManager : MonoBehaviour
 
         if (ScoreboardHUD.Instance != null)
         {
-            ScoreboardHUD.Instance.ShowAnnouncement("👑 GRANDE CAMPEÃO DO CIRCUITO!", ScoreboardHUD.Instance.goldColor, 2.0f);
+            ScoreboardHUD.Instance.ShowAnnouncement("GRANDE CAMPEÃO DO CIRCUITO!", ScoreboardHUD.Instance.goldColor, 2.0f);
         }
 
         Invoke(nameof(OpenVictoryScreen), 1.8f);
@@ -353,7 +353,7 @@ public class GameManager : MonoBehaviour
 
         if (ScoreboardHUD.Instance != null)
         {
-            ScoreboardHUD.Instance.ShowAnnouncement("💔 VOCÊ FOI ELIMINADO!", ScoreboardHUD.Instance.p2Color, 2.0f);
+            ScoreboardHUD.Instance.ShowAnnouncement("VOCÊ FOI ELIMINADO!", ScoreboardHUD.Instance.p2Color, 2.0f);
         }
 
         Invoke(nameof(OpenDefeatScreen), 1.8f);
@@ -449,7 +449,7 @@ public class GameManager : MonoBehaviour
             ScoreboardHUD.Instance.HidePauseMenuImmediate();
             ScoreboardHUD.Instance.HideVictoryScreen();
             ScoreboardHUD.Instance.HideDefeatScreen();
-            ScoreboardHUD.Instance.ShowAnnouncement("🔄 PARTIDA REINICIADA!", ScoreboardHUD.Instance.goldColor, 1.2f);
+            ScoreboardHUD.Instance.ShowAnnouncement("PARTIDA REINICIADA!", ScoreboardHUD.Instance.goldColor, 1.2f);
         }
 
         ResetMatchAndServe();
