@@ -32,6 +32,12 @@ public class Ball : MonoBehaviour
     public Vector3 player1ServePosition = new Vector3(0f, -0.65f, 0f);
     public Vector3 player2ServePosition = new Vector3(0f, 0.65f, 0f);
 
+    [Header("Parâmetros de Ângulo e Efeito do Saque")]
+    [Tooltip("Desvio lateral máximo que o jogador pode aplicar no saque (mantém a bola jogável e dentro da quadra).")]
+    public float maxPlayerServeAngle = 0.20f;
+    [Tooltip("Efeito de curva (spin) máximo permitido no saque do jogador para evitar que a bola saia da quadra.")]
+    public float maxPlayerServeSpin = 0.40f;
+
     [Header("Ajuste de Distância da Bola no Saque")]
     public Vector3 p1BallOffset = new Vector3(0.08f, 0.25f, 0f);  // Ligeiramente acima do P1
     public Vector3 p2BallOffset = new Vector3(-0.08f, -0.25f, 0f); // Ligeiramente abaixo da IA
@@ -207,9 +213,17 @@ public class Ball : MonoBehaviour
             rb.linearVelocity = Vector2.zero;
         }
 
-        if (isPlayer1Serving && player1Transform != null)
+        if (player1Transform != null)
         {
-            player1Transform.position = player1ServePosition;
+            PlayerController pc = player1Transform.GetComponent<PlayerController>();
+            if (pc != null)
+            {
+                pc.ResetToServePosition(player1ServePosition);
+            }
+            else
+            {
+                player1Transform.position = player1ServePosition;
+            }
         }
 
         if (player2Transform != null)
@@ -248,12 +262,16 @@ public class Ball : MonoBehaviour
         {
             player1Transform.SendMessage("HitBall", SendMessageOptions.DontRequireReceiver);
 
-            float serveAngleX = Random.Range(-0.10f, 0.10f);
+            float serveAngleX = Random.Range(-0.06f, 0.06f);
             float horizontalInput = Input.GetAxisRaw("Horizontal");
             if (Mathf.Abs(horizontalInput) > 0.1f)
             {
-                serveAngleX = horizontalInput * 0.30f;
-                currentSpin = Mathf.Clamp(horizontalInput, -1f, 1f);
+                serveAngleX = Mathf.Clamp(horizontalInput, -1f, 1f) * maxPlayerServeAngle;
+                currentSpin = Mathf.Clamp(horizontalInput, -1f, 1f) * maxPlayerServeSpin;
+            }
+            else
+            {
+                currentSpin = 0f;
             }
 
             targetDirection = new Vector2(serveAngleX, 1f).normalized; // Envia a bola para frente na quadra
@@ -265,7 +283,7 @@ public class Ball : MonoBehaviour
             {
                 ai.HitBall();
             }
-            targetDirection = new Vector2(Random.Range(-0.2f, 0.2f), -1f).normalized;
+            targetDirection = new Vector2(Random.Range(-0.18f, 0.18f), -1f).normalized;
         }
 
         actualDirection = targetDirection;

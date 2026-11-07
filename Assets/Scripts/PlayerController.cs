@@ -11,6 +11,18 @@ public class PlayerController : MonoBehaviour
     public float minY = -0.75f;
     public float maxY = -0.15f;
 
+    [Header("Restrições de Saque")]
+    [Tooltip("Bloqueia a saída do jogador da área permitida durante a preparação do saque.")]
+    public bool restrictServeArea = true;
+    [Tooltip("Se verdadeiro, fixa o jogador rigidamente no centro da linha de fundo para sacar.")]
+    public bool lockPositionOnServe = true;
+    [Tooltip("Limites horizontais permitidos caso lockPositionOnServe seja falso (área central do fundo).")]
+    public float serveMinX = -0.18f;
+    public float serveMaxX = 0.18f;
+    [Tooltip("Limites verticais permitidos caso lockPositionOnServe seja falso.")]
+    public float serveMinY = -0.65f;
+    public float serveMaxY = -0.65f;
+
     [Header("Rebatida")]
     public KeyCode hitKey = KeyCode.Space;
     public Transform hitArea;
@@ -77,6 +89,15 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    public bool IsPreparingServe
+    {
+        get
+        {
+            if (ballScript == null) FindBallReferences();
+            return ballScript != null && ballScript.IsServing && ballScript.IsPlayer1Serving;
+        }
+    }
+
     public void ApplyLevel(int level)
     {
         // Ajusta atributos do Player proporcionalmente a cada nível
@@ -100,20 +121,45 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        movement.x = Input.GetAxisRaw("Horizontal");
-        movement.y = Input.GetAxisRaw("Vertical");
+        bool isPreparingServe = IsPreparingServe;
+        float inputX = Input.GetAxisRaw("Horizontal");
+        float inputY = Input.GetAxisRaw("Vertical");
 
-        if (animator != null)
+        // Quando estiver preparando o saque e a restrição estiver ativa
+        if (isPreparingServe && restrictServeArea && lockPositionOnServe)
         {
-            bool isMoving = movement.sqrMagnitude > 0;
-            animator.SetBool("IsRunning", isMoving);
-            animator.SetFloat("MoveX", Mathf.Abs(movement.x));
-            animator.SetFloat("MoveY", movement.y);
+            movement = Vector2.zero;
+
+            if (animator != null)
+            {
+                animator.SetBool("IsRunning", false);
+                animator.SetFloat("MoveX", 0f);
+                animator.SetFloat("MoveY", 0f);
+            }
+
+            // Permite mirar para a esquerda ou direita (orientando o sprite) antes de sacar
+            if (spriteRenderer != null && Mathf.Abs(inputX) > 0.01f)
+            {
+                spriteRenderer.flipX = inputX < 0f;
+            }
         }
-
-        if (spriteRenderer != null && Mathf.Abs(movement.x) > 0.01f)
+        else
         {
-            spriteRenderer.flipX = movement.x < 0f;
+            movement.x = inputX;
+            movement.y = inputY;
+
+            if (animator != null)
+            {
+                bool isMoving = movement.sqrMagnitude > 0;
+                animator.SetBool("IsRunning", isMoving);
+                animator.SetFloat("MoveX", Mathf.Abs(movement.x));
+                animator.SetFloat("MoveY", movement.y);
+            }
+
+            if (spriteRenderer != null && Mathf.Abs(movement.x) > 0.01f)
+            {
+                spriteRenderer.flipX = movement.x < 0f;
+            }
         }
 
         // Espelha a HitArea para o lado correto conforme a orientação do personagem
@@ -133,7 +179,11 @@ public class PlayerController : MonoBehaviour
 
         if (Input.GetKeyDown(hitKey) && swingCooldownTimer <= 0f)
         {
-            StartSwing();
+            // Durante o saque, a execução é orquestrada centralizadamente pela bola
+            if (!isPreparingServe)
+            {
+                StartSwing();
+            }
         }
     }
 
@@ -145,12 +195,44 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        bool isPreparingServe = IsPreparingServe;
+
+        // Limita a área de posicionamento no saque para evitar quebrar a mecânica nos cantos
+        if (isPreparingServe && restrictServeArea)
+        {
+            if (lockPositionOnServe)
+            {
+                Vector2 fixedServePos = ballScript != null ? (Vector2)ballScript.player1ServePosition : new Vector2(0f, -0.65f);
+                if (rb != null)
+                {
+                    rb.linearVelocity = Vector2.zero;
+                    rb.MovePosition(fixedServePos);
+                }
+                else
+                {
+                    transform.position = fixedServePos;
+                }
+                return;
+            }
+            else
+            {
+                Vector2 serveTarget = rb.position + movement.normalized * moveSpeed * Time.fixedDeltaTime;
+                serveTarget.x = Mathf.Clamp(serveTarget.x, serveMinX, serveMaxX);
+                serveTarget.y = Mathf.Clamp(serveTarget.y, serveMinY, serveMaxY);
+
+                if (rb != null) rb.MovePosition(serveTarget);
+                else transform.position = serveTarget;
+                return;
+            }
+        }
+
         Vector2 targetPosition = rb.position + movement.normalized * moveSpeed * Time.fixedDeltaTime;
 
         targetPosition.x = Mathf.Clamp(targetPosition.x, minX, maxX);
         targetPosition.y = Mathf.Clamp(targetPosition.y, minY, maxY);
 
-        rb.MovePosition(targetPosition);
+        if (rb != null) rb.MovePosition(targetPosition);
+        else transform.position = targetPosition;
     }
 
     private void UpdateHitAreaPosition()
@@ -243,6 +325,27 @@ public class PlayerController : MonoBehaviour
         return transform.position + new Vector3(offsetX, initialHitAreaLocalPos.y, 0f);
     }
 
+    /// <summary>
+    /// Reposiciona o jogador de forma limpa na posição de saque e reseta velocidades
+    /// </summary>
+    public void ResetToServePosition(Vector3 servePos)
+    {
+        transform.position = servePos;
+        if (rb != null)
+        {
+            rb.position = servePos;
+            rb.linearVelocity = Vector2.zero;
+        }
+        movement = Vector2.zero;
+        if (animator != null)
+        {
+            animator.SetBool("IsRunning", false);
+            animator.SetFloat("MoveX", 0f);
+            animator.SetFloat("MoveY", 0f);
+        }
+        Physics2D.SyncTransforms();
+    }
+
     private void OnDrawGizmosSelected()
     {
         Vector3 strikePos = GetStrikePosition();
@@ -252,5 +355,22 @@ public class PlayerController : MonoBehaviour
         // Área de alcance frontal
         Gizmos.color = new Color(0f, 1f, 1f, 0.4f);
         Gizmos.DrawWireCube(transform.position + new Vector3(0f, hitRadius * 0.5f, 0f), new Vector3(hitRadius * 1.9f, hitRadius * 1.6f, 0f));
+
+        // Visualização da Área de Saque
+        if (restrictServeArea)
+        {
+            Gizmos.color = new Color(1f, 0.92f, 0.22f, 0.6f);
+            if (lockPositionOnServe)
+            {
+                Vector3 p = ballScript != null ? ballScript.player1ServePosition : new Vector3(0f, -0.65f, 0f);
+                Gizmos.DrawWireSphere(p, 0.08f);
+            }
+            else
+            {
+                Vector3 center = new Vector3((serveMinX + serveMaxX) * 0.5f, (serveMinY + serveMaxY) * 0.5f, 0f);
+                Vector3 size = new Vector3(serveMaxX - serveMinX, Mathf.Max(serveMaxY - serveMinY, 0.05f), 0f);
+                Gizmos.DrawWireCube(center, size);
+            }
+        }
     }
 }
